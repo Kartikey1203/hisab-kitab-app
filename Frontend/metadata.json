@@ -1,0 +1,5 @@
+{
+  "name": "Copy of Hisab Kitab",
+  "description": "A personal expense and IOU tracker to manage money owed between you and your friends, tailored for Indian users. Easily add people, log transactions in INR, and see who owes whom at a glance.",
+  "requestFramePermissions": []
+}
