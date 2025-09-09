@@ -15,6 +15,8 @@ export interface Person {
   id:string;
   name: string;
   transactions: Transaction[];
+  isFriend?: boolean;
+  paymentAddress?: string;
 }
 
 export type NewTransaction = Omit<Transaction, 'id' | 'date'>;
@@ -24,4 +26,13 @@ export interface User {
     name: string;
     email: string;
     token?: string;
+    photoUrl?: string | null;
+}
+
+export interface NotificationItem {
+  _id: string;
+  type: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
 }

@@ -4,9 +4,11 @@ import { LogoutIcon } from './icons';
 interface HeaderProps {
     userName: string;
     onLogout: () => void;
+    onOpenNotifications?: () => void;
+    unreadCount?: number;
 }
 
-const Header: React.FC<HeaderProps> = ({ userName, onLogout }) => {
+const Header: React.FC<HeaderProps> = ({ userName, onLogout, onOpenNotifications, unreadCount = 0 }) => {
   return (
     <header className="bg-slate-900 shadow-lg">
       <div className="max-w-4xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
@@ -17,6 +19,18 @@ const Header: React.FC<HeaderProps> = ({ userName, onLogout }) => {
             Hisab Kitab
         </h1>
         <div className="flex items-center gap-4">
+            {onOpenNotifications && (
+              <button
+                onClick={onOpenNotifications}
+                className="relative text-slate-300 hover:text-amber-400 transition-colors"
+                aria-label="Notifications"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v2.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 10.586V8a6 6 0 00-6-6z" /><path d="M14 14a4 4 0 11-8 0h8z" /></svg>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-rose-600 text-white text-xs rounded-full px-1.5 py-0.5">{unreadCount}</span>
+                )}
+              </button>
+            )}
             <span className="text-slate-300 hidden sm:block">
                 Welcome, <span className="font-semibold text-white">{userName}</span>
             </span>

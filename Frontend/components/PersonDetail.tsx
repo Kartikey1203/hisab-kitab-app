@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Person, Transaction, TransactionType, NewTransaction } from '../types';
 import { ArrowLeftIcon, PencilIcon, TrashIcon } from './icons';
+import { api } from '../api';
 import TransactionForm from './TransactionForm';
 
 interface PersonDetailProps {
@@ -17,7 +18,7 @@ const calculateBalance = (person: Person): number => {
   }, 0);
 };
 
-const BalanceHeader: React.FC<{ balance: number; name: string }> = ({ balance, name }) => {
+const BalanceHeader: React.FC<{ balance: number; name: string; isFriend?: boolean; onRemind: () => void }> = ({ balance, name, isFriend, onRemind }) => {
     const formattedBalance = Math.abs(balance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
     let statusText = `You and ${name} are settled up.`;
     let textColor = 'text-slate-300';
@@ -33,9 +34,17 @@ const BalanceHeader: React.FC<{ balance: number; name: string }> = ({ balance, n
     return (
         <div className="bg-slate-800/50 ring-1 ring-slate-700 p-6 rounded-lg shadow-lg mb-8 text-center">
             <p className="text-slate-400 text-sm">Total Balance with</p>
-            <p className="text-2xl font-bold text-white mb-2">{name}</p>
+            <p className="text-2xl font-bold text-white mb-2">{name}{isFriend && <span className="ml-2 text-amber-400 text-xs align-middle">(Friend)</span>}</p>
             <p className={`text-3xl font-bold ${textColor}`}>{balance < -0.001 ? '−' : ''}{formattedBalance}</p>
             <p className={`mt-2 text-md ${textColor}`}>{statusText}</p>
+            <div className="mt-4 flex flex-wrap gap-2 justify-center">
+              {balance > 0.01 && isFriend && (
+                <button
+                  onClick={onRemind}
+                  className="px-3 py-1.5 rounded bg-amber-600 text-white hover:bg-amber-700"
+                >Send Reminder</button>
+              )}
+            </div>
         </div>
     );
 };
@@ -80,6 +89,7 @@ const PersonDetail: React.FC<PersonDetailProps> = ({
 }) => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const balance = calculateBalance(person);
+  
 
   const handleAddSubmit = (transaction: NewTransaction) => {
     onAddTransaction(person.id, transaction);
@@ -113,7 +123,14 @@ const PersonDetail: React.FC<PersonDetailProps> = ({
         Back to All People
       </button>
 
-      <BalanceHeader balance={balance} name={person.name} />
+      <BalanceHeader balance={balance} name={person.name} isFriend={person.isFriend} onRemind={async () => {
+        try {
+          await api.sendReminder(person.id);
+          alert('Reminder sent');
+        } catch (e: any) {
+          alert(e?.message || 'Failed to send reminder');
+        }
+      }} />
 
       <TransactionForm 
         onSubmit={editingTransaction ? handleUpdateSubmit : handleAddSubmit}

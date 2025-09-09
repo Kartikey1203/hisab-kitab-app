@@ -12,6 +12,8 @@ interface BackendUser {
 interface BackendPerson {
   _id: string;
   name: string;
+  friendUser?: string | null;
+  paymentAddress?: string;
 }
 
 interface BackendTransaction {
@@ -21,6 +23,14 @@ interface BackendTransaction {
   date: string;
   type: 'credit' | 'debit';
   person: string;
+}
+
+interface BackendFriendRequest {
+  _id: string;
+  fromUser: { _id: string; name: string; email: string } | string;
+  toUser: { _id: string; name: string; email: string } | string;
+  status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+  createdAt: string;
 }
 
 export enum TransactionType {
@@ -126,6 +136,8 @@ export const api = {
         return {
           id: p._id,
           name: p.name,
+          isFriend: !!p.friendUser,
+          paymentAddress: p.paymentAddress || '',
           transactions: txs.map(mapBackendTxToFrontend).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
         } as Person;
       })
@@ -160,6 +172,35 @@ export const api = {
   },
   async deleteTransaction(transactionId: string): Promise<void> {
     await request(`/api/transactions/${transactionId}`, 'DELETE');
+  },
+  async sendFriendRequest(email: string, personId?: string): Promise<BackendFriendRequest> {
+    const body: any = { email };
+    if (personId) body.personId = personId;
+    return request<BackendFriendRequest>('/api/friends/request', 'POST', body);
+  },
+  async getFriendRequests(): Promise<{ incoming: BackendFriendRequest[]; outgoing: BackendFriendRequest[] }> {
+    return request<{ incoming: BackendFriendRequest[]; outgoing: BackendFriendRequest[] }>('/api/friends/requests');
+  },
+  async respondFriendRequest(requestId: string, action: 'accept' | 'decline'): Promise<BackendFriendRequest> {
+    return request<BackendFriendRequest>('/api/friends/respond', 'POST', { requestId, action });
+  },
+  async getMe() {
+    return request<{ id: string; name: string; email: string; photoUrl?: string | null }>('/api/users/me');
+  },
+  async updateProfile(name: string, photoUrl?: string | null) {
+    return request<{ id: string; name: string; email: string; photoUrl?: string | null }>('/api/users/me', 'PUT', { name, photoUrl });
+  },
+  async getNotifications() {
+    return request<any[]>('/api/notifications');
+  },
+  async markNotificationsRead(ids?: string[]) {
+    return request<{ ok: boolean }>('/api/notifications/read', 'POST', ids && ids.length ? { ids } : {});
+  },
+  async updatePerson(personId: string, data: Partial<{ name: string; paymentAddress: string }>) {
+    return request<BackendPerson>(`/api/people/${personId}`, 'PUT', data);
+  },
+  async sendReminder(personId: string) {
+    return request<{ ok: boolean }>(`/api/people/${personId}/remind`, 'POST', {});
   },
 };
 

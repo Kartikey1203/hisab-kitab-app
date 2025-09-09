@@ -25,6 +25,12 @@ const transactionSchema = new mongoose.Schema(
       required: true,
       ref: 'Person',
     },
+    // If transaction is mirrored to a friend's ledger, keep a pointer to the twin
+    counterpartTransaction: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Transaction',
+      default: null,
+    },
   },
   {
     timestamps: true,

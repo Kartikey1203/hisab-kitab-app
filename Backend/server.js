@@ -5,6 +5,9 @@ import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import personRoutes from './routes/personRoutes.js';
 import transactionRoutes from './routes/transactionRoutes.js';
+import friendRoutes from './routes/friendRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 
 // Load env vars
 dotenv.config();
@@ -31,6 +34,9 @@ app.use('/api/auth', authRoutes);
 // API routes
 app.use('/api/people', personRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/friends', friendRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Error handlers
 app.use((req, res) => {

@@ -2,6 +2,7 @@ import express from 'express';
 import { auth } from '../middleware/auth.js';
 import Transaction from '../models/Transaction.js';
 import Person from '../models/Person.js';
+import Notification from '../models/Notification.js';
 
 const router = express.Router();
 
@@ -35,6 +36,29 @@ router.post('/:personId', auth, async (req, res) => {
       type,
       person: req.params.personId
     });
+
+    // Mirror to counterpart if linked
+    if (person.counterpartPerson) {
+      const counterpartType = type === 'credit' ? 'debit' : 'credit';
+      const twin = await Transaction.create({
+        amount,
+        description,
+        date,
+        type: counterpartType,
+        person: person.counterpartPerson,
+        counterpartTransaction: transaction._id,
+      });
+      transaction.counterpartTransaction = twin._id;
+      await transaction.save();
+    }
+
+    // Notify counterpart owner if mirrored
+    if (person.counterpartPerson) {
+      const counterpart = await Person.findById(person.counterpartPerson).populate('user');
+      if (counterpart && counterpart.user) {
+        await Notification.create({ user: counterpart.user._id, type: 'tx_added', message: `${req.user.name} added a transaction with you`, metadata: { person: counterpart._id, amount, description } });
+      }
+    }
     res.status(201).json(transaction);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -59,6 +83,21 @@ router.put('/:id', auth, async (req, res) => {
       req.body,
       { new: true }
     );
+    if (updatedTransaction.counterpartTransaction) {
+      const counterpartUpdates = { ...req.body };
+      if (typeof req.body.type === 'string') {
+        counterpartUpdates.type = req.body.type === 'credit' ? 'debit' : 'credit';
+      }
+      await Transaction.findByIdAndUpdate(updatedTransaction.counterpartTransaction, counterpartUpdates);
+      // Notify counterpart owner
+      const twin = await Transaction.findById(updatedTransaction.counterpartTransaction);
+      if (twin) {
+        const counterpart = await Person.findById(twin.person).populate('user');
+        if (counterpart && counterpart.user) {
+          await Notification.create({ user: counterpart.user._id, type: 'tx_updated', message: `${req.user.name} updated a transaction with you`, metadata: { person: counterpart._id, amount: updatedTransaction.amount, description: updatedTransaction.description } });
+        }
+      }
+    }
     res.json(updatedTransaction);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -78,6 +117,16 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(401).json({ message: 'Not authorized' });
     }
 
+    if (transaction.counterpartTransaction) {
+      const twin = await Transaction.findById(transaction.counterpartTransaction);
+      await Transaction.findByIdAndDelete(transaction.counterpartTransaction);
+      if (twin) {
+        const counterpart = await Person.findById(twin.person).populate('user');
+        if (counterpart && counterpart.user) {
+          await Notification.create({ user: counterpart.user._id, type: 'tx_deleted', message: `${req.user.name} deleted a transaction with you`, metadata: { person: counterpart._id } });
+        }
+      }
+    }
     await transaction.deleteOne();
     res.json({ message: 'Transaction removed' });
   } catch (error) {
