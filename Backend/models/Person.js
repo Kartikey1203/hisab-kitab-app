@@ -17,6 +17,12 @@ const personSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    // Optional per-user nickname for this person
+    nickname: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     // When two users become friends, we create a Person document for each user
     // and link them together via counterpartPerson
     counterpartPerson: {

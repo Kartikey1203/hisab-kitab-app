@@ -9,6 +9,19 @@ import AuthPage from './components/AuthPage';
 import { UserPlusIcon, CloseIcon } from './components/icons';
 import { api } from './api';
 
+// Full-screen loading overlay
+const LoadingScreen: React.FC<{ message?: string }> = ({ message = 'Loading…' }) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90">
+    <div className="flex flex-col items-center gap-4">
+      <div className="relative h-16 w-16">
+        <span className="absolute inset-0 rounded-full border-4 border-amber-500/20"></span>
+        <span className="absolute inset-0 rounded-full border-4 border-amber-500 border-t-transparent animate-spin"></span>
+      </div>
+      <p className="text-slate-200 text-sm tracking-widest uppercase">{message}</p>
+    </div>
+  </div>
+);
+
 // Modal Component for adding a new person
 const AddPersonModal: React.FC<{
   onAddPerson: (name: string) => void;
@@ -55,6 +68,9 @@ const App: React.FC = () => {
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [loadingPeople, setLoadingPeople] = useState(false);
   const [friendEmail, setFriendEmail] = useState('');
+  const [friendQuery, setFriendQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -261,6 +277,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-slate-950 text-slate-200 font-sans">
       <Header userName={currentUser.name} onLogout={handleLogout} onOpenNotifications={() => setShowNotifications(v => !v)} unreadCount={notifications.filter(n => !n.read).length} />
       <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        {loadingPeople && <LoadingScreen message="Loading your data" />}
         {globalError && (
           <div className="mb-4 bg-rose-500/10 text-rose-300 border border-rose-700 rounded-md p-3 flex justify-between items-start">
             <span className="pr-4">{globalError}</span>
@@ -280,38 +297,72 @@ const App: React.FC = () => {
           />
         ) : (
           <div>
-            <PeopleList 
-                people={people} 
-                onSelectPerson={setSelectedPersonId}
-                onDeletePerson={deletePerson}
-                onConvertToFriend={async (p) => {
-                  const email = window.prompt(`Enter ${p.name}'s email to send a friend request`);
-                  if (!email) return;
-                  try {
-                    await api.sendFriendRequest(email.trim(), p.id);
-                    const reqs = await api.getFriendRequests();
-                    setIncomingRequests(reqs.incoming);
-                    setOutgoingRequests(reqs.outgoing);
-                  } catch (err: any) {
-                    setGlobalError(err?.message || 'Failed to send request');
-                  }
-                }}
-            />
-            <div id="friend-section" className="mt-8 bg-slate-800/50 ring-1 ring-slate-700 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-white mb-3">Add a friend by email</h3>
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  placeholder="friend@example.com"
-                  value={friendEmail}
-                  onChange={(e) => setFriendEmail(e.target.value)}
-                  className="flex-1 bg-slate-700 border border-slate-600 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-                <button
-                  onClick={sendFriendRequest}
-                  className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700"
-                >Send</button>
+            <div id="friend-section" className="mb-8 bg-slate-800/50 ring-1 ring-slate-700 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-white mb-3">Add a friend</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Search by name"
+                    value={friendQuery}
+                    onChange={(e) => setFriendQuery(e.target.value)}
+                    className="flex-1 bg-slate-700 border border-slate-600 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                  <button
+                    onClick={async () => {
+                      try {
+                        setSearchLoading(true);
+                        const res = await api.searchUsersByName(friendQuery.trim());
+                        setSearchResults(res);
+                      } catch (e: any) {
+                        setSearchResults([]);
+                        setGlobalError(e?.message || 'Search failed');
+                      } finally {
+                        setSearchLoading(false);
+                      }
+                    }}
+                    className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700"
+                  >Search</button>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    placeholder="friend@example.com"
+                    value={friendEmail}
+                    onChange={(e) => setFriendEmail(e.target.value)}
+                    className="flex-1 bg-slate-700 border border-slate-600 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                  <button
+                    onClick={sendFriendRequest}
+                    className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700"
+                  >Send</button>
+                </div>
               </div>
+              {searchLoading && <div className="mt-3 text-sm text-slate-400">Searching…</div>}
+              {(!searchLoading && searchResults.length > 0) && (
+                <ul className="mt-3 divide-y divide-slate-700 rounded-md overflow-hidden">
+                  {searchResults.map(u => (
+                    <li key={u.id} className="flex items-center justify-between bg-slate-900/50 px-3 py-2">
+                      <div>
+                        <p className="text-slate-200 font-medium">{u.name}</p>
+                        <p className="text-slate-400 text-xs">{u.email}</p>
+                      </div>
+                      <button onClick={async () => {
+                        try {
+                          await api.sendFriendRequest(u.email);
+                          const reqs = await api.getFriendRequests();
+                          setIncomingRequests(reqs.incoming);
+                          setOutgoingRequests(reqs.outgoing);
+                          setSearchResults([]);
+                          setFriendQuery('');
+                        } catch (e: any) {
+                          setGlobalError(e?.message || 'Failed to send request');
+                        }
+                      }} className="text-amber-400 hover:text-amber-300">Request</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
               {(incomingRequests.length > 0 || outgoingRequests.length > 0) && (
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -334,7 +385,19 @@ const App: React.FC = () => {
                       {outgoingRequests.map((r) => (
                         <li key={r._id} className="flex items-center justify-between bg-slate-900/50 rounded px-3 py-2">
                           <span className="text-slate-200">{typeof r.toUser === 'object' ? r.toUser.email : ''}</span>
-                          <span className="text-slate-400 text-sm">Pending</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-slate-400 text-sm">Pending</span>
+                            <button onClick={async () => {
+                              try {
+                                await api.cancelFriendRequest(r._id);
+                                const reqs = await api.getFriendRequests();
+                                setOutgoingRequests(reqs.outgoing);
+                                setIncomingRequests(reqs.incoming);
+                              } catch (e: any) {
+                                setGlobalError(e?.message || 'Failed to cancel request');
+                              }
+                            }} className="text-rose-400 hover:text-rose-300 text-sm">Cancel</button>
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -342,6 +405,23 @@ const App: React.FC = () => {
                 </div>
               )}
             </div>
+            <PeopleList 
+                people={people} 
+                onSelectPerson={setSelectedPersonId}
+                onDeletePerson={deletePerson}
+                onConvertToFriend={async (p) => {
+                  const email = window.prompt(`Enter ${p.name}'s email to send a friend request`);
+                  if (!email) return;
+                  try {
+                    await api.sendFriendRequest(email.trim(), p.id);
+                    const reqs = await api.getFriendRequests();
+                    setIncomingRequests(reqs.incoming);
+                    setOutgoingRequests(reqs.outgoing);
+                  } catch (err: any) {
+                    setGlobalError(err?.message || 'Failed to send request');
+                  }
+                }}
+            />
             <div className="fixed bottom-6 right-6">
               <div className="relative">
                 <button
@@ -375,7 +455,10 @@ const App: React.FC = () => {
           <div className="absolute right-6 top-20 w-96 bg-slate-800 ring-1 ring-slate-700 rounded-lg shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between p-3 border-b border-slate-700">
               <h4 className="text-white font-semibold">Notifications</h4>
-              <button className="text-amber-400 hover:text-amber-300" onClick={async () => { await api.markNotificationsRead(); const list = await api.getNotifications(); setNotifications(list); }}>Mark all read</button>
+              <div className="flex items-center gap-3">
+                <button className="text-amber-400 hover:text-amber-300" onClick={async () => { await api.markNotificationsRead(); const list = await api.getNotifications(); setNotifications(list); }}>Mark all read</button>
+                <button className="text-rose-400 hover:text-rose-300" onClick={async () => { await api.clearNotifications(); setNotifications([]); }}>Clear</button>
+              </div>
             </div>
             <div className="max-h-[60vh] overflow-auto">
               {notifications.length === 0 ? (
@@ -419,7 +502,16 @@ const App: React.FC = () => {
                 <input value={profilePhotoUrl} onChange={(e) => setProfilePhotoUrl(e.target.value)} className="w-full bg-slate-700 border border-slate-600 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="https://..." />
                 <p className="text-xs text-slate-400 mt-1">Paste a public image URL for now.</p>
               </div>
-              <div className="flex justify-end gap-2">
+              <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
+                <button onClick={async () => {
+                  if (!window.confirm('This will permanently delete your account. Continue?')) return;
+                  try {
+                    await api.deleteAccount();
+                    setCurrentUser(null);
+                  } catch (e: any) {
+                    setGlobalError(e?.message || 'Failed to delete account');
+                  }
+                }} className="px-4 py-2 rounded bg-rose-700/70 text-rose-200 hover:bg-rose-700 order-2 sm:order-none">Delete Account</button>
                 <button onClick={() => setIsProfileOpen(false)} className="px-4 py-2 rounded bg-slate-700 text-slate-200">Cancel</button>
                 <button onClick={saveProfile} className="px-4 py-2 rounded bg-amber-600 text-white hover:bg-amber-700">Save</button>
               </div>

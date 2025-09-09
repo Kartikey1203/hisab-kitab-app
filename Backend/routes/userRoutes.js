@@ -15,6 +15,21 @@ router.get('/me', auth, async (req, res) => {
   }
 });
 
+// Search users by name (case-insensitive). Excludes self.
+router.get('/search', auth, async (req, res) => {
+  try {
+    const q = (req.query.q || '').toString().trim();
+    if (!q) return res.json([]);
+    const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    const results = await User.find({ _id: { $ne: req.user._id }, name: regex })
+      .select('name email')
+      .limit(10);
+    res.json(results.map(u => ({ id: u._id, name: u.name, email: u.email })));
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+});
+
 // Update profile
 router.put('/me', auth, async (req, res) => {
   try {
@@ -27,6 +42,17 @@ router.put('/me', auth, async (req, res) => {
     res.json({ id: updated._id, name: updated.name, email: updated.email, photoUrl: updated.photoUrl });
   } catch (error) {
     res.status(400).json({ message: error.message });
+  }
+});
+
+// Delete account
+router.delete('/me', auth, async (req, res) => {
+  try {
+    // TODO: Consider cascading deletes for persons, transactions, requests, notifications
+    await User.findByIdAndDelete(req.user._id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ message: e.message });
   }
 });
 

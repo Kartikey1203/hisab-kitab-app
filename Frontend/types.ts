@@ -17,6 +17,7 @@ export interface Person {
   transactions: Transaction[];
   isFriend?: boolean;
   paymentAddress?: string;
+  nickname?: string;
 }
 
 export type NewTransaction = Omit<Transaction, 'id' | 'date'>;

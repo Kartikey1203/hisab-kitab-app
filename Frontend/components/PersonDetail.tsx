@@ -18,7 +18,7 @@ const calculateBalance = (person: Person): number => {
   }, 0);
 };
 
-const BalanceHeader: React.FC<{ balance: number; name: string; isFriend?: boolean; onRemind: () => void }> = ({ balance, name, isFriend, onRemind }) => {
+const BalanceHeader: React.FC<{ balance: number; name: string; isFriend?: boolean; onRemind: () => void; onEditNickname?: () => void; nickname?: string }> = ({ balance, name, isFriend, onRemind, onEditNickname, nickname }) => {
     const formattedBalance = Math.abs(balance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
     let statusText = `You and ${name} are settled up.`;
     let textColor = 'text-slate-300';
@@ -34,7 +34,12 @@ const BalanceHeader: React.FC<{ balance: number; name: string; isFriend?: boolea
     return (
         <div className="bg-slate-800/50 ring-1 ring-slate-700 p-6 rounded-lg shadow-lg mb-8 text-center">
             <p className="text-slate-400 text-sm">Total Balance with</p>
-            <p className="text-2xl font-bold text-white mb-2">{name}{isFriend && <span className="ml-2 text-amber-400 text-xs align-middle">(Friend)</span>}</p>
+            <p className="text-2xl font-bold text-white mb-2">
+              {name}{isFriend && <span className="ml-2 text-amber-400 text-xs align-middle">(Friend)</span>}
+              {typeof nickname === 'string' && nickname.trim() && (
+                <span className="ml-2 text-slate-300 text-sm">“{nickname}”</span>
+              )}
+            </p>
             <p className={`text-3xl font-bold ${textColor}`}>{balance < -0.001 ? '−' : ''}{formattedBalance}</p>
             <p className={`mt-2 text-md ${textColor}`}>{statusText}</p>
             <div className="mt-4 flex flex-wrap gap-2 justify-center">
@@ -43,6 +48,12 @@ const BalanceHeader: React.FC<{ balance: number; name: string; isFriend?: boolea
                   onClick={onRemind}
                   className="px-3 py-1.5 rounded bg-amber-600 text-white hover:bg-amber-700"
                 >Send Reminder</button>
+              )}
+              {onEditNickname && (
+                <button
+                  onClick={onEditNickname}
+                  className="px-3 py-1.5 rounded bg-slate-700 text-slate-200 hover:bg-slate-600"
+                >Edit Nickname</button>
               )}
             </div>
         </div>
@@ -123,12 +134,20 @@ const PersonDetail: React.FC<PersonDetailProps> = ({
         Back to All People
       </button>
 
-      <BalanceHeader balance={balance} name={person.name} isFriend={person.isFriend} onRemind={async () => {
+      <BalanceHeader balance={balance} name={person.name} nickname={person.nickname} isFriend={person.isFriend} onRemind={async () => {
         try {
           await api.sendReminder(person.id);
           alert('Reminder sent');
         } catch (e: any) {
           alert(e?.message || 'Failed to send reminder');
+        }
+      }} onEditNickname={async () => {
+        const nick = window.prompt('Enter a nickname for this friend', person.nickname || '') || '';
+        try {
+          await api.updatePerson(person.id, { nickname: nick });
+          // no global state here; rely on parent to refetch people if needed.
+        } catch (e) {
+          // ignore
         }
       }} />
 

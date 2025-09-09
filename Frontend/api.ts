@@ -14,6 +14,7 @@ interface BackendPerson {
   name: string;
   friendUser?: string | null;
   paymentAddress?: string;
+  nickname?: string;
 }
 
 interface BackendTransaction {
@@ -138,6 +139,7 @@ export const api = {
           name: p.name,
           isFriend: !!p.friendUser,
           paymentAddress: p.paymentAddress || '',
+          nickname: p.nickname || '',
           transactions: txs.map(mapBackendTxToFrontend).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
         } as Person;
       })
@@ -184,11 +186,18 @@ export const api = {
   async respondFriendRequest(requestId: string, action: 'accept' | 'decline'): Promise<BackendFriendRequest> {
     return request<BackendFriendRequest>('/api/friends/respond', 'POST', { requestId, action });
   },
+  async cancelFriendRequest(requestId: string): Promise<BackendFriendRequest> {
+    return request<BackendFriendRequest>('/api/friends/cancel', 'POST', { requestId });
+  },
   async getMe() {
     return request<{ id: string; name: string; email: string; photoUrl?: string | null }>('/api/users/me');
   },
   async updateProfile(name: string, photoUrl?: string | null) {
     return request<{ id: string; name: string; email: string; photoUrl?: string | null }>('/api/users/me', 'PUT', { name, photoUrl });
+  },
+  async searchUsersByName(query: string) {
+    const encoded = encodeURIComponent(query);
+    return request<Array<{ id: string; name: string; email: string }>>(`/api/users/search?q=${encoded}`);
   },
   async getNotifications() {
     return request<any[]>('/api/notifications');
@@ -196,11 +205,17 @@ export const api = {
   async markNotificationsRead(ids?: string[]) {
     return request<{ ok: boolean }>('/api/notifications/read', 'POST', ids && ids.length ? { ids } : {});
   },
-  async updatePerson(personId: string, data: Partial<{ name: string; paymentAddress: string }>) {
+  async clearNotifications() {
+    return request<{ ok: boolean }>('/api/notifications/clear', 'DELETE');
+  },
+  async updatePerson(personId: string, data: Partial<{ name: string; paymentAddress: string; nickname: string }>) {
     return request<BackendPerson>(`/api/people/${personId}`, 'PUT', data);
   },
   async sendReminder(personId: string) {
     return request<{ ok: boolean }>(`/api/people/${personId}/remind`, 'POST', {});
+  },
+  async deleteAccount() {
+    return request<{ ok: boolean }>('/api/users/me', 'DELETE');
   },
 };
 

@@ -4,6 +4,7 @@ import User from '../models/User.js';
 import Person from '../models/Person.js';
 import FriendRequest from '../models/FriendRequest.js';
 import Notification from '../models/Notification.js';
+import Transaction from '../models/Transaction.js';
 
 const router = express.Router();
 
@@ -109,6 +110,37 @@ router.post('/respond', auth, async (req, res) => {
       await bPerson.save();
     }
 
+    // Ensure person names reflect friend user names
+    if (aPerson.name !== bUser.name) {
+      aPerson.name = bUser.name;
+      await aPerson.save();
+    }
+    if (bPerson.name !== aUser.name) {
+      bPerson.name = aUser.name;
+      await bPerson.save();
+    }
+
+    // Backfill transactions both ways if missing counterpart
+    const backfillFor = async (sourcePersonId, targetPersonId) => {
+      const txs = await Transaction.find({ person: sourcePersonId });
+      for (const tx of txs) {
+        if (!tx.counterpartTransaction) {
+          const twin = await Transaction.create({
+            amount: tx.amount,
+            description: tx.description,
+            date: tx.date,
+            type: tx.type === 'credit' ? 'debit' : 'credit',
+            person: targetPersonId,
+            counterpartTransaction: tx._id,
+          });
+          tx.counterpartTransaction = twin._id;
+          await tx.save();
+        }
+      }
+    };
+    await backfillFor(aPerson._id, bPerson._id);
+    await backfillFor(bPerson._id, aPerson._id);
+
     // Notify both users
     await Notification.create({ user: aUser._id, type: 'friend_accepted', message: `${bUser.name} accepted your friend request`, metadata: { friend: bUser._id } });
     await Notification.create({ user: bUser._id, type: 'friend_accepted', message: `You are now friends with ${aUser.name}`, metadata: { friend: aUser._id } });
@@ -129,5 +161,21 @@ router.get('/list', auth, async (req, res) => {
 });
 
 export default router;
+
+// Cancel outgoing pending friend request
+router.post('/cancel', auth, async (req, res) => {
+  try {
+    const { requestId } = req.body;
+    const fr = await FriendRequest.findById(requestId);
+    if (!fr || !fr.fromUser.equals(req.user._id) || fr.status !== 'pending') {
+      return res.status(404).json({ message: 'Pending request not found' });
+    }
+    fr.status = 'cancelled';
+    await fr.save();
+    return res.json(fr);
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+});
 
 

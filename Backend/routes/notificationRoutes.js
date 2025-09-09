@@ -27,6 +27,15 @@ router.post('/read', auth, async (req, res) => {
   }
 });
 
+router.delete('/clear', auth, async (req, res) => {
+  try {
+    await Notification.deleteMany({ user: req.user._id });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+});
+
 export default router;
 
 
