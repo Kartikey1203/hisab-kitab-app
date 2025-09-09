@@ -20,10 +20,18 @@ router.get('/search', auth, async (req, res) => {
   try {
     const q = (req.query.q || '').toString().trim();
     if (!q) return res.json([]);
+    
     const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    const results = await User.find({ _id: { $ne: req.user._id }, name: regex })
+    const results = await User.find({
+      _id: { $ne: req.user._id }, // Exclude current user
+      $or: [
+        { name: regex },
+        { email: regex }
+      ]
+    })
       .select('name email')
       .limit(10);
+      
     res.json(results.map(u => ({ id: u._id, name: u.name, email: u.email })));
   } catch (e) {
     res.status(500).json({ message: e.message });

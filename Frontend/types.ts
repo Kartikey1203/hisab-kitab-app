@@ -9,6 +9,7 @@ export interface Transaction {
   purpose: string;
   type: TransactionType;
   date: string;
+  createdBy: string; // Add this field
 }
 
 export interface Person {

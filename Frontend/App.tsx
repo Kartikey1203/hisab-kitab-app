@@ -297,110 +297,161 @@ const App: React.FC = () => {
           />
         ) : (
           <div>
-            <div id="friend-section" className="mb-8 bg-slate-800/50 ring-1 ring-slate-700 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-white mb-3">Add a friend</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Search by name"
-                    value={friendQuery}
-                    onChange={(e) => setFriendQuery(e.target.value)}
-                    className="flex-1 bg-slate-700 border border-slate-600 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                  <button
-                    onClick={async () => {
-                      try {
-                        setSearchLoading(true);
-                        const res = await api.searchUsersByName(friendQuery.trim());
-                        setSearchResults(res);
-                      } catch (e: any) {
-                        setSearchResults([]);
-                        setGlobalError(e?.message || 'Search failed');
-                      } finally {
-                        setSearchLoading(false);
-                      }
-                    }}
-                    className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700"
-                  >Search</button>
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="email"
-                    placeholder="friend@example.com"
-                    value={friendEmail}
-                    onChange={(e) => setFriendEmail(e.target.value)}
-                    className="flex-1 bg-slate-700 border border-slate-600 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                  <button
-                    onClick={sendFriendRequest}
-                    className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700"
-                  >Send</button>
+            <div id="friend-section" className="mb-8 bg-slate-800/50 ring-1 ring-slate-700 rounded-lg overflow-hidden">
+              <div className="p-6 border-b border-slate-700">
+                <h3 className="text-xl font-semibold text-white mb-4">Find Friends</h3>
+                <div className="space-y-4">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search by name or email address..."
+                      value={friendQuery}
+                      onChange={(e) => setFriendQuery(e.target.value)}
+                      className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-4 py-3 pr-24 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                    <button
+                      onClick={async () => {
+                        try {
+                          setSearchLoading(true);
+                          const query = friendQuery.trim();
+                          if (!query) return;
+                          
+                          // Search by both name and email
+                          const results = await api.searchUsersByName(query);
+                          setSearchResults(results);
+                        } catch (e: any) {
+                          setGlobalError(e?.message || 'Search failed');
+                          setSearchResults([]);
+                        } finally {
+                          setSearchLoading(false);
+                        }
+                      }}
+                      disabled={!friendQuery.trim()}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-amber-600 text-white px-4 py-1.5 rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:hover:bg-amber-600"
+                    >
+                      Search
+                    </button>
+                  </div>
+
+                  {searchLoading && (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-amber-500 border-t-transparent"></div>
+                    </div>
+                  )}
+
+                  {(!searchLoading && searchResults.length > 0) && (
+                    <div className="bg-slate-900/50 rounded-lg overflow-hidden">
+                      <ul className="divide-y divide-slate-700">
+                        {searchResults.map(u => (
+                          <li key={u.id} className="flex items-center justify-between p-4 hover:bg-slate-800/50 transition-colors">
+                            <div>
+                              <p className="text-slate-200 font-medium">{u.name}</p>
+                              <p className="text-slate-400 text-sm mt-0.5">{u.email}</p>
+                            </div>
+                            <button 
+                              onClick={async () => {
+                                try {
+                                  await api.sendFriendRequest(u.email);
+                                  const reqs = await api.getFriendRequests();
+                                  setIncomingRequests(reqs.incoming);
+                                  setOutgoingRequests(reqs.outgoing);
+                                  // Don't clear results to allow sending multiple requests
+                                  // setSearchResults([]);
+                                  // setFriendQuery('');
+                                } catch (e: any) {
+                                  setGlobalError(e?.message || 'Failed to send request');
+                                }
+                              }}
+                              className="flex items-center gap-2 px-4 py-2 rounded-md bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 transition-colors"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
+                              </svg>
+                              Send Request
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {(!searchLoading && searchResults.length === 0 && friendQuery) && (
+                    <div className="text-center py-8 text-slate-400">
+                      No users found matching "{friendQuery}"
+                    </div>
+                  )}
                 </div>
               </div>
-              {searchLoading && <div className="mt-3 text-sm text-slate-400">Searching…</div>}
-              {(!searchLoading && searchResults.length > 0) && (
-                <ul className="mt-3 divide-y divide-slate-700 rounded-md overflow-hidden">
-                  {searchResults.map(u => (
-                    <li key={u.id} className="flex items-center justify-between bg-slate-900/50 px-3 py-2">
-                      <div>
-                        <p className="text-slate-200 font-medium">{u.name}</p>
-                        <p className="text-slate-400 text-xs">{u.email}</p>
-                      </div>
-                      <button onClick={async () => {
-                        try {
-                          await api.sendFriendRequest(u.email);
-                          const reqs = await api.getFriendRequests();
-                          setIncomingRequests(reqs.incoming);
-                          setOutgoingRequests(reqs.outgoing);
-                          setSearchResults([]);
-                          setFriendQuery('');
-                        } catch (e: any) {
-                          setGlobalError(e?.message || 'Failed to send request');
-                        }
-                      }} className="text-amber-400 hover:text-amber-300">Request</button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+
               {(incomingRequests.length > 0 || outgoingRequests.length > 0) && (
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="text-white font-semibold mb-2">Incoming</h4>
-                    <ul className="space-y-2">
-                      {incomingRequests.map((r) => (
-                        <li key={r._id} className="flex items-center justify-between bg-slate-900/50 rounded px-3 py-2">
-                          <span className="text-slate-200">{typeof r.fromUser === 'object' ? r.fromUser.email : ''}</span>
-                          <div className="flex gap-2">
-                            <button onClick={() => respondToRequest(r._id, 'accept')} className="text-emerald-400 hover:text-emerald-300">Accept</button>
-                            <button onClick={() => respondToRequest(r._id, 'decline')} className="text-rose-400 hover:text-rose-300">Decline</button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="text-white font-semibold mb-2">Outgoing</h4>
-                    <ul className="space-y-2">
-                      {outgoingRequests.map((r) => (
-                        <li key={r._id} className="flex items-center justify-between bg-slate-900/50 rounded px-3 py-2">
-                          <span className="text-slate-200">{typeof r.toUser === 'object' ? r.toUser.email : ''}</span>
-                          <div className="flex items-center gap-3">
-                            <span className="text-slate-400 text-sm">Pending</span>
-                            <button onClick={async () => {
-                              try {
-                                await api.cancelFriendRequest(r._id);
-                                const reqs = await api.getFriendRequests();
-                                setOutgoingRequests(reqs.outgoing);
-                                setIncomingRequests(reqs.incoming);
-                              } catch (e: any) {
-                                setGlobalError(e?.message || 'Failed to cancel request');
-                              }
-                            }} className="text-rose-400 hover:text-rose-300 text-sm">Cancel</button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
+                <div className="border-t border-slate-700">
+                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="text-lg font-medium text-white mb-3">Incoming Requests</h4>
+                      {incomingRequests.length === 0 ? (
+                        <p className="text-slate-400 text-sm">No incoming requests</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {incomingRequests.map((r) => (
+                            <li key={r._id} className="flex items-center justify-between bg-slate-900/50 rounded-lg p-3">
+                              <div>
+                                <p className="text-slate-200">{typeof r.fromUser === 'object' ? r.fromUser.name : ''}</p>
+                                <p className="text-slate-400 text-sm">{typeof r.fromUser === 'object' ? r.fromUser.email : ''}</p>
+                              </div>
+                              <div className="flex gap-2">
+                                <button 
+                                  onClick={() => respondToRequest(r._id, 'accept')} 
+                                  className="px-3 py-1.5 rounded bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30"
+                                >
+                                  Accept
+                                </button>
+                                <button 
+                                  onClick={() => respondToRequest(r._id, 'decline')} 
+                                  className="px-3 py-1.5 rounded bg-rose-600/20 text-rose-400 hover:bg-rose-600/30"
+                                >
+                                  Decline
+                                </button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-medium text-white mb-3">Outgoing Requests</h4>
+                      {outgoingRequests.length === 0 ? (
+                        <p className="text-slate-400 text-sm">No outgoing requests</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {outgoingRequests.map((r) => (
+                            <li key={r._id} className="flex items-center justify-between bg-slate-900/50 rounded-lg p-3">
+                              <div>
+                                <p className="text-slate-200">{typeof r.toUser === 'object' ? r.toUser.name : ''}</p>
+                                <p className="text-slate-400 text-sm">{typeof r.toUser === 'object' ? r.toUser.email : ''}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-400 text-sm">Pending</span>
+                                <button 
+                                  onClick={async () => {
+                                    try {
+                                      await api.cancelFriendRequest(r._id);
+                                      const reqs = await api.getFriendRequests();
+                                      setOutgoingRequests(reqs.outgoing);
+                                      setIncomingRequests(reqs.incoming);
+                                    } catch (e: any) {
+                                      setGlobalError(e?.message || 'Failed to cancel request');
+                                    }
+                                  }} 
+                                  className="px-3 py-1.5 rounded bg-rose-600/20 text-rose-400 hover:bg-rose-600/30"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
