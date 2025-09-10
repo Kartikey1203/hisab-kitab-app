@@ -89,6 +89,27 @@
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
       
+      html {
+        font-size: 15px;
+      }
+      @media (max-width: 600px) {
+        html {
+          font-size: 11px;
+        }
+        body {
+          padding: 0 2vw;
+        }
+        #root {
+          max-width: 100vw;
+          min-width: 0;
+        }
+      }
+      @media (max-width: 400px) {
+        html {
+          font-size: 10px;
+        }
+      }
+      
       /* Simplified scrollbar */
       ::-webkit-scrollbar {
         width: 8px;
@@ -104,31 +125,18 @@
         background: #64748b;
       }
 
-      @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      
-      @keyframes slideUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-
-      /* Replace gradient backgrounds with solid colors */
+      /* Remove loading animation styles */
       .app-bg {
         background-color: #0f172a;
       }
-      
       .card-bg {
         background-color: rgba(30, 41, 59, 0.5);
         backdrop-filter: blur(12px);
       }
-      
       .action-button {
         background-color: #0095ff;
         transition: background-color 0.2s;
       }
-      
       .action-button:hover {
         background-color: #0077cc;
       }

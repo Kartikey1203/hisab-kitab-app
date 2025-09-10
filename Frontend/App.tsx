@@ -9,20 +9,6 @@ import AuthPage from './components/AuthPage';
 import { UserPlusIcon, CloseIcon } from './components/icons';
 import { api } from './api';
 
-// Full-screen loading overlay with enhanced animation
-const LoadingScreen: React.FC<{ message?: string }> = ({ message = 'Loading…' }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-sm">
-    <div className="flex flex-col items-center gap-6 animate-fade-in">
-      <div className="relative h-20 w-20">
-        <div className="absolute inset-0 rounded-full border-4 border-primary-200/20"></div>
-        <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-primary-500 border-r-accent-500 animate-spin"></div>
-        <div className="absolute inset-2 rounded-full border-2 border-transparent border-b-accent-400 border-l-primary-400 animate-spin animate-reverse"></div>
-      </div>
-      <p className="text-slate-200 text-sm tracking-wider font-medium">{message}</p>
-    </div>
-  </div>
-);
-
 // Enhanced Modal Component
 const AddPersonModal: React.FC<{
   onAddPerson: (name: string) => void;
@@ -265,7 +251,18 @@ const App: React.FC = () => {
       />
       
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        {loadingPeople && <LoadingScreen message="Loading your data" />}
+        {loadingPeople && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-6 animate-fade-in">
+              <div className="relative h-20 w-20">
+                <div className="absolute inset-0 rounded-full border-4 border-primary-200/20"></div>
+                <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-primary-500 border-r-accent-500 animate-spin"></div>
+                <div className="absolute inset-2 rounded-full border-2 border-transparent border-b-accent-400 border-l-primary-400 animate-spin animate-reverse"></div>
+              </div>
+              <p className="text-slate-200 text-sm tracking-wider font-medium">Loading your data</p>
+            </div>
+          </div>
+        )}
         
         {globalError && (
           <div className="mb-6 card-gradient border border-danger-500/20 rounded-xl p-4 flex justify-between items-start animate-fade-in">
@@ -383,7 +380,7 @@ const App: React.FC = () => {
                                   setGlobalError(e?.message || 'Failed to send request');
                                 }
                               }}
-                              className="ml-4 flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-primary-600/20 text-primary-400 hover:bg-primary-600/30 transition-all border border-primary-500/20 font-medium hover:scale-105"
+                              className="ml-4 flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-primary-600/20 text-primary-400 hover:bg-primary-600/30 transition-all border border-primary-500/20 font-medium"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                 <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
