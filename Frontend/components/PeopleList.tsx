@@ -19,6 +19,14 @@ const calculateBalance = (person: Person): number => {
   }, 0);
 };
 
+const calculateTotalBalance = (people: Person[]): number => {
+  return people.reduce((sum, person) => {
+    return sum + person.transactions.reduce((acc, tx) => {
+      return tx.type === TransactionType.I_PAID ? acc + tx.amount : acc - tx.amount;
+    }, 0);
+  }, 0);
+};
+
 const BalanceDisplay: React.FC<{ balance: number }> = ({ balance }) => {
   const formattedBalance = Math.abs(balance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
 
@@ -33,6 +41,15 @@ const BalanceDisplay: React.FC<{ balance: number }> = ({ balance }) => {
 
 const PeopleList: React.FC<PeopleListProps> = ({ people, onSelectPerson, onDeletePerson, onConvertToFriend }) => {
   const [personToDelete, setPersonToDelete] = useState<Person | null>(null);
+
+  const totalBalance = calculateTotalBalance(people);
+  const formattedTotal = Math.abs(totalBalance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
+  const totalColor = totalBalance > 0 ? 'text-emerald-400' : totalBalance < 0 ? 'text-rose-400' : 'text-slate-300';
+  const totalLabel = totalBalance > 0
+    ? 'You will receive'
+    : totalBalance < 0
+      ? 'You have to pay'
+      : 'Settled up';
 
   const handleDeleteClick = (e: React.MouseEvent, person: Person) => {
     e.stopPropagation(); // Prevent onSelectPerson from firing
@@ -57,7 +74,14 @@ const PeopleList: React.FC<PeopleListProps> = ({ people, onSelectPerson, onDelet
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold text-white mb-4">Everyone</h2>
+      {/* Total Balance Summary */}
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-2xl font-bold text-white">Everyone</h2>
+        <div className="flex flex-col items-end">
+          <span className={`text-lg font-bold ${totalColor}`}>{totalBalance < 0 ? '−' : ''}{formattedTotal}</span>
+          <span className={`text-xs ${totalColor}`}>{totalLabel}</span>
+        </div>
+      </div>
       {people.map(person => {
         const balance = calculateBalance(person);
         return (
