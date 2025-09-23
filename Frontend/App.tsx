@@ -69,12 +69,14 @@ const App: React.FC = () => {
         setLoadingPeople(true);
         setGlobalError(null);
         try {
-          const list = await api.getPeople();
+          const [list, reqs, notifs] = await Promise.all([
+            api.getPeople(),
+            api.getFriendRequests(),
+            api.getNotifications()
+          ]);
           setPeople(list);
-          const reqs = await api.getFriendRequests();
           setIncomingRequests(reqs.incoming);
           setOutgoingRequests(reqs.outgoing);
-          const notifs = await api.getNotifications();
           setNotifications(notifs);
         } catch (err: any) {
           setGlobalError(err?.message || 'Failed to load data');
