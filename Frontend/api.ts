@@ -217,6 +217,83 @@ export const api = {
   async deleteAccount() {
     return request<{ ok: boolean }>('/api/users/me', 'DELETE');
   },
+
+  // Personal expense tracking APIs
+  async getPersonalExpenses(filters?: { start?: string; end?: string }) {
+    let url = '/api/personal-expenses';
+    
+    if (filters) {
+      const params = new URLSearchParams();
+      if (filters.start) params.append('start', filters.start);
+      if (filters.end) params.append('end', filters.end);
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+    }
+    
+    const expenses = await request<any[]>(url);
+    return expenses.map(expense => ({
+      id: expense._id,
+      amount: expense.amount,
+      description: expense.description,
+      date: new Date(expense.date).toISOString(),
+      createdAt: new Date(expense.createdAt).toISOString(),
+      updatedAt: new Date(expense.updatedAt).toISOString(),
+    }));
+  },
+
+  async addPersonalExpense(expense: { amount: number; description: string; date?: string }) {
+    const payload = {
+      ...expense,
+      category: 'Expense', // Using a default category for backend compatibility
+      date: expense.date || new Date().toISOString(),
+    };
+
+    const created = await request<any>('/api/personal-expenses', 'POST', payload);
+    return {
+      id: created._id,
+      amount: created.amount,
+      description: created.description,
+      date: new Date(created.date).toISOString(),
+      createdAt: new Date(created.createdAt).toISOString(),
+      updatedAt: new Date(created.updatedAt).toISOString(),
+    };
+  },
+
+  async updatePersonalExpense(id: string, expense: { amount?: number; description?: string; date?: string }) {
+    // Add a default category for backend compatibility
+    const payload = { ...expense, category: 'Expense' };
+    const updated = await request<any>(`/api/personal-expenses/${id}`, 'PUT', payload);
+    return {
+      id: updated._id,
+      amount: updated.amount,
+      description: updated.description,
+      date: new Date(updated.date).toISOString(),
+      createdAt: new Date(updated.createdAt).toISOString(),
+      updatedAt: new Date(updated.updatedAt).toISOString(),
+    };
+  },
+
+  async deletePersonalExpense(id: string) {
+    await request<{ message: string }>(`/api/personal-expenses/${id}`, 'DELETE');
+  },
+
+
+
+  async getTimePeriodSummary(period: 'daily' | 'weekly' | 'monthly', filters?: { start?: string; end?: string }) {
+    let url = `/api/personal-expenses/time/summary?period=${period}`;
+    
+    if (filters) {
+      const params = new URLSearchParams();
+      if (filters.start) params.append('start', filters.start);
+      if (filters.end) params.append('end', filters.end);
+      if (params.toString()) {
+        url += `&${params.toString()}`;
+      }
+    }
+    
+    return request<Array<{ period: string; total: number; count: number }>>(url);
+  },
 };
 
 export type { BackendUser };

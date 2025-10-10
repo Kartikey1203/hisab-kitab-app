@@ -6,6 +6,7 @@ import PeopleList from './components/PeopleList';
 import AddPersonForm from './components/AddPersonForm';
 import PersonDetail from './components/PersonDetail';
 import AuthPage from './components/AuthPage';
+import PersonalFinance from './components/PersonalFinance';
 import { UserPlusIcon, CloseIcon } from './components/icons';
 import { api } from './api';
 
@@ -61,6 +62,7 @@ const App: React.FC = () => {
   const [outgoingRequests, setOutgoingRequests] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [activeSection, setActiveSection] = useState<'people' | 'personal-finance'>('people');
 
   useEffect(() => {
     setSelectedPersonId(null);
@@ -252,6 +254,42 @@ const App: React.FC = () => {
         unreadCount={notifications.filter(n => !n.read).length} 
       />
       
+      {/* Navigation Tabs */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-b border-white/10">
+        <div className="flex">
+          <button
+            onClick={() => setActiveSection('people')}
+            className={`py-4 px-6 font-medium transition-colors ${
+              activeSection === 'people'
+                ? 'text-white border-b-2 border-primary-500'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+              </svg>
+              <span>People & IOUs</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveSection('personal-finance')}
+            className={`py-4 px-6 font-medium transition-colors ${
+              activeSection === 'personal-finance'
+                ? 'text-white border-b-2 border-accent-500'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+              <span>Personal Expenses</span>
+            </div>
+          </button>
+        </div>
+      </div>
+      
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         {loadingPeople && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-sm">
@@ -285,7 +323,9 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {selectedPerson ? (
+        {activeSection === 'personal-finance' ? (
+          <PersonalFinance onError={setGlobalError} />
+        ) : selectedPerson ? (
           <PersonDetail
             person={selectedPerson}
             onBack={() => setSelectedPersonId(null)}
@@ -569,6 +609,17 @@ const App: React.FC = () => {
                         </svg>
                       </div>
                       <span>Edit Profile</span>
+                    </button>
+                    <button 
+                      className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 text-white font-medium transition-colors flex items-center gap-3 group" 
+                      onClick={() => { setIsFabMenuOpen(false); setActiveSection('personal-finance'); }}
+                    >
+                      <div className="h-8 w-8 rounded-lg bg-accent-500/20 flex items-center justify-center group-hover:bg-accent-500/30 transition-colors">
+                        <svg className="h-5 w-5 text-accent-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                      </div>
+                      <span>Personal Expenses</span>
                     </button>
                   </div>
                 )}

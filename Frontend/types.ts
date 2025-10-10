@@ -38,3 +38,21 @@ export interface NotificationItem {
   read: boolean;
   createdAt: string;
 }
+
+// Personal expense tracking interfaces
+export interface PersonalExpense {
+  id: string;
+  amount: number;
+  description: string;
+  date: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type NewPersonalExpense = Omit<PersonalExpense, 'id' | 'createdAt' | 'updatedAt'>;
+
+export interface TimePeriodSummary {
+  period: string;
+  total: number;
+  count: number;
+}

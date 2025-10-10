@@ -8,6 +8,7 @@ import transactionRoutes from './routes/transactionRoutes.js';
 import friendRoutes from './routes/friendRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import personalExpenseRoutes from './routes/personalExpenseRoutes.js';
 
 // Load env vars
 dotenv.config();
@@ -37,6 +38,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/personal-expenses', personalExpenseRoutes);
 
 // Error handlers
 app.use((req, res) => {
