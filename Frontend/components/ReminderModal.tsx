@@ -6,7 +6,16 @@ import {
   sendWhatsAppReminder,
   sendSMSReminder,
   copyReminderToClipboard,
+  shareWithPDF,
+  isShareWithFilesSupported,
+  calculateAmountOwed,
 } from '../utils/reminderUtils';
+import {
+  generateTransactionHistoryPDF,
+  downloadPDF,
+  previewPDF,
+  generatePDFFilename,
+} from '../utils/pdfGenerator';
 
 interface ReminderModalProps {
   person: Person;
@@ -81,6 +90,63 @@ const ReminderModal: React.FC<ReminderModalProps> = ({ person, onClose }) => {
       setTimeout(() => setShowSuccess(false), 2000);
     } else {
       alert('Failed to copy to clipboard');
+    }
+  };
+
+  const handleShareWithPDF = async () => {
+    try {
+      setSuccessMessage('Generating PDF...');
+      setShowSuccess(true);
+
+      const totalBalance = calculateAmountOwed(person);
+      const pdfBlob = generateTransactionHistoryPDF(person, totalBalance);
+      const filename = generatePDFFilename(person.name);
+
+      const result = await shareWithPDF(message, pdfBlob, filename);
+
+      if (result.success) {
+        setSuccessMessage('Shared successfully!');
+        setTimeout(() => onClose(), 1500);
+      } else {
+        setShowSuccess(false);
+        if (result.error === 'Share cancelled') {
+          // User cancelled, just close success message
+          return;
+        }
+        alert(result.error || 'Failed to share. Try "Download PDF" instead.');
+      }
+    } catch (error: any) {
+      setShowSuccess(false);
+      alert('Failed to generate PDF: ' + error.message);
+    }
+  };
+
+  const handleDownloadPDF = () => {
+    try {
+      setSuccessMessage('Generating PDF...');
+      setShowSuccess(true);
+
+      const totalBalance = calculateAmountOwed(person);
+      const pdfBlob = generateTransactionHistoryPDF(person, totalBalance);
+      const filename = generatePDFFilename(person.name);
+
+      downloadPDF(pdfBlob, filename);
+
+      setSuccessMessage('PDF downloaded!');
+      setTimeout(() => setShowSuccess(false), 2000);
+    } catch (error: any) {
+      setShowSuccess(false);
+      alert('Failed to generate PDF: ' + error.message);
+    }
+  };
+
+  const handlePreviewPDF = () => {
+    try {
+      const totalBalance = calculateAmountOwed(person);
+      const pdfBlob = generateTransactionHistoryPDF(person, totalBalance);
+      previewPDF(pdfBlob);
+    } catch (error: any) {
+      alert('Failed to generate PDF: ' + error.message);
     }
   };
 
@@ -171,8 +237,66 @@ const ReminderModal: React.FC<ReminderModalProps> = ({ person, onClose }) => {
             </div>
           )}
 
+          {/* PDF Info Section */}
+          <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+              </svg>
+              <span className="text-slate-300 font-medium">Transaction History PDF</span>
+            </div>
+            <p className="text-slate-400 text-sm">
+              {person.transactions.length} transaction{person.transactions.length !== 1 ? 's' : ''} • {person.name}
+            </p>
+          </div>
+
           {/* Action Buttons */}
           <div className="space-y-3">
+            {/* PDF Action Buttons */}
+            {isShareWithFilesSupported() && (
+              <button
+                onClick={handleShareWithPDF}
+                className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-bold py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                📄 Share with PDF
+              </button>
+            )}
+
+            <button
+              onClick={handleDownloadPDF}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Download PDF
+            </button>
+
+            <button
+              onClick={handlePreviewPDF}
+              className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              Preview PDF
+            </button>
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-700"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-slate-800 text-slate-400">Or share text only</span>
+              </div>
+            </div>
+
+            {/* Text-Only Action Buttons */}
             <button
               onClick={handleWhatsApp}
               className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2"

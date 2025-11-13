@@ -129,3 +129,60 @@ export const copyReminderToClipboard = async (message: string): Promise<boolean>
     return false;
   }
 };
+
+/**
+ * Check if Web Share API with files is supported
+ */
+export const isShareWithFilesSupported = (): boolean => {
+  return navigator.share !== undefined && navigator.canShare !== undefined;
+};
+
+/**
+ * Share reminder message with PDF attachment using Web Share API
+ */
+export const shareWithPDF = async (
+  message: string,
+  pdfBlob: Blob,
+  filename: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    if (!navigator.share) {
+      return { success: false, error: 'Share API not supported on this device' };
+    }
+
+    const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+    
+    // Check if sharing files is supported
+    if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+      return { success: false, error: 'Sharing PDF files is not supported on this device' };
+    }
+
+    await navigator.share({
+      title: 'Payment Reminder',
+      text: message,
+      files: [file],
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    // User cancelled the share
+    if (error.name === 'AbortError') {
+      return { success: false, error: 'Share cancelled' };
+    }
+    console.error('Failed to share:', error);
+    return { success: false, error: error.message || 'Failed to share' };
+  }
+};
+
+/**
+ * Open email client with reminder and PDF attachment
+ * Note: Email attachments via mailto: are not supported by most browsers
+ * This will just open email with the message, user needs to attach PDF manually
+ */
+export const sendEmailReminder = (email: string, message: string, subject: string = 'Payment Reminder'): void => {
+  const encodedSubject = encodeURIComponent(subject);
+  const encodedBody = encodeURIComponent(message + '\n\n[Please attach the PDF that was downloaded]');
+  
+  const mailtoUrl = `mailto:${email}?subject=${encodedSubject}&body=${encodedBody}`;
+  window.open(mailtoUrl, '_blank');
+};
