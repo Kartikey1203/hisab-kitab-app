@@ -76,6 +76,7 @@ router.put('/:id', auth, async (req, res) => {
     const updates = {};
     if (typeof req.body.name === 'string') updates.name = req.body.name;
     if (typeof req.body.nickname === 'string') updates.nickname = req.body.nickname;
+    if (typeof req.body.phoneNumber === 'string') updates.phoneNumber = req.body.phoneNumber;
 
     const updated = await Person.findByIdAndUpdate(person._id, updates, { new: true });
     res.json(updated);

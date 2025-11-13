@@ -36,6 +36,12 @@ const personSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    // Phone number for sending reminders
+    phoneNumber: {
+      type: String,
+      default: '',
+      trim: true,
+    },
   },
   {
     timestamps: true,

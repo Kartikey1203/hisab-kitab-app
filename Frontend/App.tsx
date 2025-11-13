@@ -67,6 +67,17 @@ const App: React.FC = () => {
   const [activeSection, setActiveSection] = useState<'people' | 'personal-finance'>('people');
   const [showBulkTransactionModal, setShowBulkTransactionModal] = useState(false);
 
+  // Function to refresh people data
+  const refreshPeople = async () => {
+    if (!currentUser?.token) return;
+    try {
+      const list = await api.getPeople();
+      setPeople(list);
+    } catch (err: any) {
+      console.error('Failed to refresh people:', err);
+    }
+  };
+
   useEffect(() => {
     setSelectedPersonId(null);
     const load = async () => {
@@ -385,6 +396,7 @@ const App: React.FC = () => {
             onAddTransaction={addTransaction}
             onUpdateTransaction={updateTransaction}
             onDeleteTransaction={deleteTransaction}
+            onPersonUpdate={refreshPeople}
           />
         ) : (
           <div className="space-y-8">

@@ -3,6 +3,7 @@ import { Person, Transaction, TransactionType, NewTransaction } from '../types';
 import { ArrowLeftIcon, PencilIcon, TrashIcon } from './icons';
 import { api } from '../api';
 import TransactionForm from './TransactionForm';
+import ReminderModal from './ReminderModal';
 
 interface PersonDetailProps {
   person: Person;
@@ -10,6 +11,7 @@ interface PersonDetailProps {
   onAddTransaction: (personId: string, transaction: NewTransaction) => void;
   onUpdateTransaction: (personId: string, transactionId: string, transaction: NewTransaction) => void;
   onDeleteTransaction: (personId: string, transactionId: string) => void;
+  onPersonUpdate?: () => void; // Callback to refresh person data
 }
 
 const calculateBalance = (person: Person): number => {
@@ -18,7 +20,16 @@ const calculateBalance = (person: Person): number => {
   }, 0);
 };
 
-const BalanceHeader: React.FC<{ balance: number; name: string; isFriend?: boolean; onRemind: () => void; onEditNickname?: () => void; nickname?: string }> = ({ balance, name, isFriend, onRemind, onEditNickname, nickname }) => {
+const BalanceHeader: React.FC<{ 
+  balance: number; 
+  name: string; 
+  isFriend?: boolean; 
+  onRemind: () => void; 
+  onEditNickname?: () => void; 
+  onEditPhone?: () => void;
+  nickname?: string;
+  phoneNumber?: string;
+}> = ({ balance, name, isFriend, onRemind, onEditNickname, onEditPhone, nickname, phoneNumber }) => {
     const formattedBalance = Math.abs(balance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
     let statusText = `You and ${name} are settled up.`;
     let textColor = 'text-slate-300';
@@ -42,6 +53,11 @@ const BalanceHeader: React.FC<{ balance: number; name: string; isFriend?: boolea
             </p>
             <p className={`text-3xl font-bold ${textColor}`}>{balance < -0.001 ? '−' : ''}{formattedBalance}</p>
             <p className={`mt-2 text-md ${textColor}`}>{statusText}</p>
+            {phoneNumber && (
+              <p className="mt-1 text-sm text-slate-400">
+                📱 {phoneNumber}
+              </p>
+            )}
             <div className="mt-4 flex flex-wrap gap-2 justify-center">
               {balance > 0.01 && isFriend && (
                 <button
@@ -54,6 +70,12 @@ const BalanceHeader: React.FC<{ balance: number; name: string; isFriend?: boolea
                   onClick={onEditNickname}
                   className="px-3 py-1.5 rounded bg-slate-700 text-slate-200 hover:bg-slate-600"
                 >Edit Nickname</button>
+              )}
+              {onEditPhone && (
+                <button
+                  onClick={onEditPhone}
+                  className="px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700"
+                >📱 Edit Phone</button>
               )}
             </div>
         </div>
@@ -97,8 +119,10 @@ const PersonDetail: React.FC<PersonDetailProps> = ({
   onAddTransaction,
   onUpdateTransaction,
   onDeleteTransaction,
+  onPersonUpdate,
 }) => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [showReminderModal, setShowReminderModal] = useState(false);
   const balance = calculateBalance(person);
   
 
@@ -134,22 +158,39 @@ const PersonDetail: React.FC<PersonDetailProps> = ({
         Back to All People
       </button>
 
-      <BalanceHeader balance={balance} name={person.name} nickname={person.nickname} isFriend={person.isFriend} onRemind={async () => {
-        try {
-          await api.sendReminder(person.id);
-          alert('Reminder sent');
-        } catch (e: any) {
-          alert(e?.message || 'Failed to send reminder');
-        }
-      }} onEditNickname={async () => {
-        const nick = window.prompt('Enter a nickname for this friend', person.nickname || '') || '';
-        try {
-          await api.updatePerson(person.id, { nickname: nick });
-          // no global state here; rely on parent to refetch people if needed.
-        } catch (e) {
-          // ignore
-        }
-      }} />
+      <BalanceHeader 
+        balance={balance} 
+        name={person.name} 
+        nickname={person.nickname} 
+        phoneNumber={person.phoneNumber}
+        isFriend={person.isFriend} 
+        onRemind={() => {
+          setShowReminderModal(true);
+        }} 
+        onEditNickname={async () => {
+          const nick = window.prompt('Enter a nickname for this friend', person.nickname || '') || '';
+          try {
+            await api.updatePerson(person.id, { nickname: nick });
+            // Trigger refresh to show updated nickname
+            if (onPersonUpdate) onPersonUpdate();
+          } catch (e) {
+            alert('Failed to update nickname');
+          }
+        }}
+        onEditPhone={async () => {
+          const phone = window.prompt('Enter phone number (with country code, e.g., +91 9876543210)', person.phoneNumber || '');
+          if (phone !== null) { // Only update if not cancelled
+            try {
+              await api.updatePerson(person.id, { phoneNumber: phone });
+              // Trigger refresh to show updated phone number
+              if (onPersonUpdate) onPersonUpdate();
+              alert('Phone number saved successfully! ✅');
+            } catch (e) {
+              alert('Failed to update phone number');
+            }
+          }
+        }}
+      />
 
       <TransactionForm 
         onSubmit={editingTransaction ? handleUpdateSubmit : handleAddSubmit}
@@ -177,6 +218,14 @@ const PersonDetail: React.FC<PersonDetailProps> = ({
           </div>
         )}
       </div>
+
+      {/* Reminder Modal */}
+      {showReminderModal && (
+        <ReminderModal 
+          person={person}
+          onClose={() => setShowReminderModal(false)}
+        />
+      )}
     </div>
   );
 };

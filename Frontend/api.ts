@@ -15,6 +15,7 @@ interface BackendPerson {
   friendUser?: string | null;
   paymentAddress?: string;
   nickname?: string;
+  phoneNumber?: string;
 }
 
 interface BackendTransaction {
@@ -140,6 +141,7 @@ export const api = {
         isFriend: !!p.friendUser,
         paymentAddress: p.paymentAddress || '',
         nickname: p.nickname || '',
+        phoneNumber: p.phoneNumber || '',
         transactions: p.transactions
           .map(mapBackendTxToFrontend)
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
@@ -160,6 +162,7 @@ export const api = {
           isFriend: !!p.friendUser,
           paymentAddress: p.paymentAddress || '',
           nickname: p.nickname || '',
+          phoneNumber: p.phoneNumber || '',
           transactions: txs.map(mapBackendTxToFrontend).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
         } as Person;
       })
@@ -242,7 +245,7 @@ export const api = {
   async clearNotifications() {
     return request<{ ok: boolean }>('/api/notifications/clear', 'DELETE');
   },
-  async updatePerson(personId: string, data: Partial<{ name: string; paymentAddress: string; nickname: string }>) {
+  async updatePerson(personId: string, data: Partial<{ name: string; paymentAddress: string; nickname: string; phoneNumber: string }>) {
     return request<BackendPerson>(`/api/people/${personId}`, 'PUT', data);
   },
   async sendReminder(personId: string) {

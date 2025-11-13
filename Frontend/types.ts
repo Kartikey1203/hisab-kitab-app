@@ -19,6 +19,7 @@ export interface Person {
   isFriend?: boolean;
   paymentAddress?: string;
   nickname?: string;
+  phoneNumber?: string; // Phone number for reminders
 }
 
 export type NewTransaction = Omit<Transaction, 'id' | 'date' | 'createdBy'>;
