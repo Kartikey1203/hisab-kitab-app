@@ -42,5 +42,10 @@ const personSchema = new mongoose.Schema(
   }
 );
 
+// Add indexes for better query performance
+personSchema.index({ user: 1 }); // For finding all people by user
+personSchema.index({ friendUser: 1 }); // For finding friend connections
+personSchema.index({ counterpartPerson: 1 }); // For finding counterpart
+
 const Person = mongoose.model('Person', personSchema);
 export default Person;

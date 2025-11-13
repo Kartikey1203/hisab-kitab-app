@@ -37,5 +37,9 @@ const transactionSchema = new mongoose.Schema(
   }
 );
 
+// Add indexes for better query performance
+transactionSchema.index({ person: 1, date: -1 }); // For finding transactions by person, sorted by date
+transactionSchema.index({ counterpartTransaction: 1 }); // For finding linked transactions
+
 const Transaction = mongoose.model('Transaction', transactionSchema);
 export default Transaction;

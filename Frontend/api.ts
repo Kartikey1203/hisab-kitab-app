@@ -128,7 +128,27 @@ export const api = {
   async login(email: string, password: string): Promise<BackendUser> {
     return request<BackendUser>('/api/auth/login', 'POST', { email, password });
   },
+  
+  // OPTIMIZED: Get all people with transactions in ONE API call
   async getPeople(): Promise<Person[]> {
+    const peopleWithTransactions = await request<Array<BackendPerson & { transactions: BackendTransaction[] }>>('/api/people/with-transactions');
+    
+    return peopleWithTransactions
+      .map(p => ({
+        id: p._id,
+        name: p.name,
+        isFriend: !!p.friendUser,
+        paymentAddress: p.paymentAddress || '',
+        nickname: p.nickname || '',
+        transactions: p.transactions
+          .map(mapBackendTxToFrontend)
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  },
+  
+  // DEPRECATED: Old slow method - keeping for backwards compatibility
+  async getPeopleOld(): Promise<Person[]> {
     const people = await request<BackendPerson[]>('/api/people');
     // fetch transactions per person in parallel
     const withTransactions = await Promise.all(
@@ -162,6 +182,20 @@ export const api = {
     };
     const created = await request<BackendTransaction>(`/api/transactions/${personId}`, 'POST', payload);
     return mapBackendTxToFrontend(created);
+  },
+  async addBulkTransaction(personIds: string[], tx: NewTransaction): Promise<{ message: string; transactions: Transaction[] }> {
+    const payload = {
+      amount: tx.amount,
+      description: tx.purpose,
+      type: tx.type === TransactionType.I_PAID ? 'credit' : 'debit',
+      date: new Date().toISOString(),
+      personIds,
+    };
+    const response = await request<{ message: string; transactions: BackendTransaction[] }>('/api/transactions/bulk', 'POST', payload);
+    return {
+      message: response.message,
+      transactions: response.transactions.map(mapBackendTxToFrontend)
+    };
   },
   async updateTransaction(transactionId: string, tx: NewTransaction): Promise<Transaction> {
     const payload = {

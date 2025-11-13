@@ -7,6 +7,7 @@ import AddPersonForm from './components/AddPersonForm';
 import PersonDetail from './components/PersonDetail';
 import AuthPage from './components/AuthPage';
 import PersonalFinance from './components/PersonalFinance';
+import BulkTransactionForm from './components/BulkTransactionForm';
 import { UserPlusIcon, CloseIcon } from './components/icons';
 import { api } from './api';
 
@@ -63,6 +64,7 @@ const App: React.FC = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [activeSection, setActiveSection] = useState<'people' | 'personal-finance'>('people');
+  const [showBulkTransactionModal, setShowBulkTransactionModal] = useState(false);
 
   useEffect(() => {
     setSelectedPersonId(null);
@@ -236,6 +238,56 @@ const App: React.FC = () => {
       } catch (err: any) {
         setGlobalError(err?.message || 'Failed to delete transaction');
       }
+    }
+  };
+
+  const handleBulkTransaction = async (personIds: string[], transaction: NewTransaction) => {
+    try {
+      setGlobalError(null);
+      const response = await api.addBulkTransaction(personIds, transaction);
+      
+      // Create a transaction object to add to each person
+      const newTransaction = {
+        id: Date.now().toString(), // temporary ID, will be replaced when data reloads
+        amount: transaction.amount,
+        purpose: transaction.purpose,
+        type: transaction.type,
+        date: new Date().toISOString(),
+      };
+      
+      // Update people with new transactions
+      setPeople(prevPeople =>
+        prevPeople.map(person => {
+          if (personIds.includes(person.id)) {
+            return {
+              ...person,
+              transactions: [
+                newTransaction,
+                ...person.transactions,
+              ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+            };
+          }
+          return person;
+        })
+      );
+      
+      setShowBulkTransactionModal(false);
+      
+      // Show success message
+      const count = personIds.length;
+      alert(`Successfully added transaction to ${count} ${count === 1 ? 'person' : 'people'}!`);
+      
+      // Reload the data to get accurate transaction IDs and any mirrored transactions
+      try {
+        const updatedPeople = await api.getPeople();
+        setPeople(updatedPeople);
+      } catch (reloadErr) {
+        // If reload fails, the optimistic update is still in place
+        console.warn('Failed to reload people data after bulk transaction:', reloadErr);
+      }
+      
+    } catch (err: any) {
+      setGlobalError(err?.message || 'Failed to add bulk transaction');
     }
   };
 
@@ -588,6 +640,27 @@ const App: React.FC = () => {
                       <span>Add Person</span>
                     </button>
                     <button 
+                      className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-colors flex items-center gap-3 group ${
+                        people.length === 0 
+                          ? 'opacity-50 cursor-not-allowed text-slate-400' 
+                          : 'hover:bg-white/10 text-white'
+                      }`}
+                      onClick={() => { setShowBulkTransactionModal(true); setIsFabMenuOpen(false); }}
+                      disabled={people.length === 0}
+                      title={people.length === 0 ? 'Add some people first' : 'Add transaction to multiple people'}
+                    >
+                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center transition-colors ${
+                        people.length === 0
+                          ? 'bg-slate-600/20'
+                          : 'bg-amber-500/20 group-hover:bg-amber-500/30'
+                      }`}>
+                        <svg className={`h-5 w-5 ${people.length === 0 ? 'text-slate-500' : 'text-amber-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                      </div>
+                      <span>Bulk Transaction</span>
+                    </button>
+                    <button 
                       className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 text-white font-medium transition-colors flex items-center gap-3 group" 
                       onClick={() => { setIsFabMenuOpen(false); const el = document.querySelector('[data-section="friends"]'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }}
                     >
@@ -630,6 +703,14 @@ const App: React.FC = () => {
               <AddPersonModal 
                 onAddPerson={handleAddPerson} 
                 onClose={() => setIsAddPersonModalOpen(false)}
+              />
+            )}
+
+            {showBulkTransactionModal && (
+              <BulkTransactionForm 
+                people={people}
+                onSubmit={handleBulkTransaction}
+                onCancel={() => setShowBulkTransactionModal(false)}
               />
             )}
           </div>

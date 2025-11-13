@@ -1,10 +1,46 @@
 import express from 'express';
 import { auth } from '../middleware/auth.js';
 import Person from '../models/Person.js';
+import Transaction from '../models/Transaction.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
 
 const router = express.Router();
+
+// Get all people with their transactions for logged in user (OPTIMIZED)
+router.get('/with-transactions', auth, async (req, res) => {
+  try {
+    // Get all people for the user
+    const people = await Person.find({ user: req.user.id }).lean();
+    
+    // Get all person IDs
+    const personIds = people.map(p => p._id);
+    
+    // Fetch ALL transactions for ALL people in ONE query
+    const allTransactions = await Transaction.find({ 
+      person: { $in: personIds } 
+    }).lean();
+    
+    // Group transactions by person
+    const transactionsByPerson = allTransactions.reduce((acc, tx) => {
+      const personId = tx.person.toString();
+      if (!acc[personId]) acc[personId] = [];
+      acc[personId].push(tx);
+      return acc;
+    }, {});
+    
+    // Combine people with their transactions
+    const peopleWithTransactions = people.map(person => ({
+      ...person,
+      transactions: (transactionsByPerson[person._id.toString()] || [])
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+    }));
+    
+    res.json(peopleWithTransactions);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 // Get all people for logged in user
 router.get('/', auth, async (req, res) => {

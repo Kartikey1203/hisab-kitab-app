@@ -2,6 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { TimePeriodSummary } from '../types';
 import { api } from '../api';
 
+interface CategorySummary {
+  category: string;
+  total: number;
+  count: number;
+}
+
 interface ExpenseAnalyticsProps {
   onError: (message: string) => void;
 }

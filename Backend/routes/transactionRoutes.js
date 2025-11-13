@@ -6,6 +6,73 @@ import Notification from '../models/Notification.js';
 
 const router = express.Router();
 
+// Add bulk transaction to multiple people
+router.post('/bulk', auth, async (req, res) => {
+  try {
+    const { amount, description, date, type, personIds } = req.body;
+    
+    if (!personIds || !Array.isArray(personIds) || personIds.length === 0) {
+      return res.status(400).json({ message: 'At least one person must be selected' });
+    }
+
+    // Verify all persons belong to the user
+    const persons = await Person.find({ _id: { $in: personIds }, user: req.user.id });
+    if (persons.length !== personIds.length) {
+      return res.status(401).json({ message: 'Some persons not found or unauthorized' });
+    }
+
+    const createdTransactions = [];
+    
+    // Create transaction for each person
+    for (const personId of personIds) {
+      const transaction = await Transaction.create({
+        amount,
+        description,
+        date,
+        type,
+        person: personId
+      });
+
+      // Handle counterpart mirroring if person has linked friend
+      const person = await Person.findById(personId);
+      if (person.counterpartPerson) {
+        const counterpartType = type === 'credit' ? 'debit' : 'credit';
+        const twin = await Transaction.create({
+          amount,
+          description,
+          date,
+          type: counterpartType,
+          person: person.counterpartPerson,
+          counterpartTransaction: transaction._id,
+        });
+
+        transaction.counterpartTransaction = twin._id;
+        await transaction.save();
+
+        // Notify counterpart owner if mirrored
+        const counterpart = await Person.findById(person.counterpartPerson).populate('user');
+        if (counterpart && counterpart.user) {
+          await Notification.create({ 
+            user: counterpart.user._id, 
+            type: 'tx_added', 
+            message: `${req.user.name} added a transaction with you`, 
+            metadata: { person: counterpart._id, amount, description } 
+          });
+        }
+      }
+
+      createdTransactions.push(transaction);
+    }
+
+    res.status(201).json({ 
+      message: `${createdTransactions.length} transactions created successfully`,
+      transactions: createdTransactions 
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
 // Get transactions for a person
 router.get('/:personId', auth, async (req, res) => {
   try {
