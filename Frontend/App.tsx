@@ -8,6 +8,7 @@ import PersonDetail from './components/PersonDetail';
 import AuthPage from './components/AuthPage';
 import PersonalFinance from './components/PersonalFinance';
 import BulkTransactionForm from './components/BulkTransactionForm';
+import VoiceCommandButton from './components/VoiceCommandButton';
 import { UserPlusIcon, CloseIcon } from './components/icons';
 import { api } from './api';
 
@@ -611,8 +612,16 @@ const App: React.FC = () => {
               }}
             />
 
-            {/* Enhanced FAB */}
-            <div className="fixed bottom-6 right-6 z-40">
+            {/* Enhanced FAB with Voice Command */}
+            <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-4">
+              {/* Voice Command Button */}
+              <VoiceCommandButton 
+                people={people}
+                onAddTransaction={addTransaction}
+                onBulkTransaction={handleBulkTransaction}
+              />
+              
+              {/* Main FAB */}
               <div className="relative">
                 <button
                   onClick={() => setIsFabMenuOpen(v => !v)}

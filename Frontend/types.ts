@@ -9,7 +9,7 @@ export interface Transaction {
   purpose: string;
   type: TransactionType;
   date: string;
-  createdBy: string; // Add this field
+  createdBy?: string; // Optional field
 }
 
 export interface Person {
@@ -21,7 +21,7 @@ export interface Person {
   nickname?: string;
 }
 
-export type NewTransaction = Omit<Transaction, 'id' | 'date'>;
+export type NewTransaction = Omit<Transaction, 'id' | 'date' | 'createdBy'>;
 
 export interface User {
     id: string;
