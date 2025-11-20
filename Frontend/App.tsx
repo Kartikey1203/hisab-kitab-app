@@ -112,6 +112,21 @@ const App: React.FC = () => {
     void load();
   }, [currentUser, setPeople]);
 
+  // Refresh user data when navigating to profile section
+  useEffect(() => {
+    const refreshUserData = async () => {
+      if (activeSection === 'profile' && currentUser?.token) {
+        try {
+          const me = await api.getMe();
+          setCurrentUser(prev => prev ? { ...prev, photoUrl: me.photoUrl || undefined } : prev);
+        } catch (err) {
+          console.error('Failed to refresh user data:', err);
+        }
+      }
+    };
+    void refreshUserData();
+  }, [activeSection]);
+
   const handleLogin = async (email: string, pass: string) => {
     setGlobalError(null);
     const u = await api.login(email, pass);
