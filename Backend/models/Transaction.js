@@ -31,6 +31,12 @@ const transactionSchema = new mongoose.Schema(
       ref: 'Transaction',
       default: null,
     },
+    // Track who created the transaction
+    addedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
   },
   {
     timestamps: true,

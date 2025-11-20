@@ -12,6 +12,7 @@ interface PersonDetailProps {
   onUpdateTransaction: (personId: string, transactionId: string, transaction: NewTransaction) => void;
   onDeleteTransaction: (personId: string, transactionId: string) => void;
   onPersonUpdate?: () => void; // Callback to refresh person data
+  currentUserId: string; // Current logged-in user ID
 }
 
 const calculateBalance = (person: Person): number => {
@@ -86,11 +87,15 @@ const TransactionItem: React.FC<{
     transaction: Transaction;
     onEdit: (transaction: Transaction) => void;
     onDelete: (id: string) => void;
-}> = ({ transaction, onEdit, onDelete }) => {
+    currentUserId: string;
+}> = ({ transaction, onEdit, onDelete, currentUserId }) => {
     const isCredit = transaction.type === TransactionType.I_PAID;
     const amountColor = isCredit ? 'text-emerald-400' : 'text-rose-400';
     const sign = isCredit ? '+' : '−';
     const payer = isCredit ? 'You paid' : 'They paid';
+    
+    // Check if current user created this transaction (or if it's a legacy transaction without addedBy)
+    const canEdit = !transaction.addedBy || transaction.addedBy === currentUserId;
 
     return (
         <li className="flex items-center justify-between bg-slate-800/50 ring-1 ring-slate-800 p-4 rounded-lg hover:bg-slate-800 transition-colors">
@@ -102,12 +107,18 @@ const TransactionItem: React.FC<{
             </div>
             <div className="flex items-center gap-4 flex-shrink-0">
                 <p className={`text-lg font-bold ${amountColor}`}>{sign} {transaction.amount.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</p>
-                <button onClick={() => onEdit(transaction)} className="text-slate-400 hover:text-amber-400 transition-colors" aria-label="Edit transaction">
-                    <PencilIcon />
-                </button>
-                <button onClick={() => onDelete(transaction.id)} className="text-slate-400 hover:text-rose-400 transition-colors" aria-label="Delete transaction">
-                    <TrashIcon />
-                </button>
+                {canEdit ? (
+                  <>
+                    <button onClick={() => onEdit(transaction)} className="text-slate-400 hover:text-amber-400 transition-colors" aria-label="Edit transaction">
+                        <PencilIcon />
+                    </button>
+                    <button onClick={() => onDelete(transaction.id)} className="text-slate-400 hover:text-rose-400 transition-colors" aria-label="Delete transaction">
+                        <TrashIcon />
+                    </button>
+                  </>
+                ) : (
+                  <span className="text-xs text-slate-500 italic px-2">View only</span>
+                )}
             </div>
         </li>
     );
@@ -120,6 +131,7 @@ const PersonDetail: React.FC<PersonDetailProps> = ({
   onUpdateTransaction,
   onDeleteTransaction,
   onPersonUpdate,
+  currentUserId,
 }) => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [showReminderModal, setShowReminderModal] = useState(false);
@@ -208,6 +220,7 @@ const PersonDetail: React.FC<PersonDetailProps> = ({
                 transaction={tx}
                 onEdit={handleEditClick}
                 onDelete={(id) => onDeleteTransaction(person.id, id)}
+                currentUserId={currentUserId}
               />
             ))}
           </ul>

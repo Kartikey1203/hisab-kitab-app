@@ -9,8 +9,10 @@ import AuthPage from './components/AuthPage';
 import PersonalFinance from './components/PersonalFinance';
 import BulkTransactionForm from './components/BulkTransactionForm';
 import VoiceCommandButton from './components/VoiceCommandButton';
+import ImageCropModal from './components/ImageCropModal';
 import { UserPlusIcon, CloseIcon } from './components/icons';
 import { api } from './api';
+import BottomNavigation from './components/BottomNavigation';
 
 // Enhanced Modal Component
 const AddPersonModal: React.FC<{
@@ -18,20 +20,20 @@ const AddPersonModal: React.FC<{
   onClose: () => void;
 }> = ({ onAddPerson, onClose }) => {
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black/80 backdrop-blur-md flex justify-center items-center z-50 p-4"
       onClick={onClose}
       aria-modal="true"
       role="dialog"
     >
-      <div 
+      <div
         className="card-gradient rounded-2xl shadow-2xl w-full max-w-md border border-white/10 animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center p-6 border-b border-white/10">
           <h2 className="text-xl font-semibold text-white">Add New Person</h2>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
             aria-label="Close"
           >
@@ -64,8 +66,9 @@ const App: React.FC = () => {
   const [outgoingRequests, setOutgoingRequests] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [activeSection, setActiveSection] = useState<'people' | 'personal-finance'>('people');
+  const [activeSection, setActiveSection] = useState<'people' | 'personal-finance' | 'profile'>('people');
   const [showBulkTransactionModal, setShowBulkTransactionModal] = useState(false);
+  const [showImageCropModal, setShowImageCropModal] = useState(false);
 
   // Function to refresh people data
   const refreshPeople = async () => {
@@ -122,7 +125,7 @@ const App: React.FC = () => {
     const user: User = { id: u.id, name: u.name, email: u.email, token: u.token };
     setCurrentUser(user);
   };
-  
+
   const handleLogout = () => {
     setCurrentUser(null);
   };
@@ -142,11 +145,26 @@ const App: React.FC = () => {
 
   const saveProfile = async () => {
     try {
-      const updated = await api.updateProfile(profileName, profilePhotoUrl || null);
+      const updated = await api.updateProfile(profileName);
       setCurrentUser(prev => prev ? { ...prev, name: updated.name, photoUrl: updated.photoUrl || undefined } : prev);
       setIsProfileOpen(false);
     } catch (err: any) {
       setGlobalError(err?.message || 'Failed to update profile');
+    }
+  };
+
+  const handleCroppedImage = async (croppedImageBlob: Blob) => {
+    console.log('Received blob:', croppedImageBlob);
+    try {
+      setGlobalError(null);
+      console.log('Uploading photo...');
+      const updated = await api.uploadPhoto(croppedImageBlob);
+      console.log('Upload response:', updated);
+      setProfilePhotoUrl(updated.photoUrl);
+      setCurrentUser(prev => prev ? { ...prev, photoUrl: updated.photoUrl } : prev);
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      setGlobalError(err?.message || 'Failed to upload photo');
     }
   };
 
@@ -199,12 +217,12 @@ const App: React.FC = () => {
         prevPeople.map(p =>
           p.id === personId
             ? {
-                ...p,
-                transactions: [
-                  ...p.transactions,
-                  created,
-                ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-              }
+              ...p,
+              transactions: [
+                ...p.transactions,
+                created,
+              ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+            }
             : p
         )
       );
@@ -212,7 +230,7 @@ const App: React.FC = () => {
       setGlobalError(err?.message || 'Failed to add transaction');
     }
   };
-  
+
   const updateTransaction = async (personId: string, transactionId: string, updatedTransaction: NewTransaction) => {
     try {
       setGlobalError(null);
@@ -221,9 +239,9 @@ const App: React.FC = () => {
         prevPeople.map(p =>
           p.id === personId
             ? {
-                ...p,
-                transactions: p.transactions.map(tx => (tx.id === transactionId ? updated : tx)),
-              }
+              ...p,
+              transactions: p.transactions.map(tx => (tx.id === transactionId ? updated : tx)),
+            }
             : p
         )
       );
@@ -241,9 +259,9 @@ const App: React.FC = () => {
           prevPeople.map(p =>
             p.id === personId
               ? {
-                  ...p,
-                  transactions: p.transactions.filter(tx => tx.id !== transactionId),
-                }
+                ...p,
+                transactions: p.transactions.filter(tx => tx.id !== transactionId),
+              }
               : p
           )
         );
@@ -257,7 +275,7 @@ const App: React.FC = () => {
     try {
       setGlobalError(null);
       const response = await api.addBulkTransaction(personIds, transaction);
-      
+
       // Create a transaction object to add to each person
       const newTransaction = {
         id: Date.now().toString(), // temporary ID, will be replaced when data reloads
@@ -266,7 +284,7 @@ const App: React.FC = () => {
         type: transaction.type,
         date: new Date().toISOString(),
       };
-      
+
       // Update people with new transactions
       setPeople(prevPeople =>
         prevPeople.map(person => {
@@ -282,13 +300,13 @@ const App: React.FC = () => {
           return person;
         })
       );
-      
+
       setShowBulkTransactionModal(false);
-      
+
       // Show success message
       const count = personIds.length;
       alert(`Successfully added transaction to ${count} ${count === 1 ? 'person' : 'people'}!`);
-      
+
       // Reload the data to get accurate transaction IDs and any mirrored transactions
       try {
         const updatedPeople = await api.getPeople();
@@ -297,7 +315,7 @@ const App: React.FC = () => {
         // If reload fails, the optimistic update is still in place
         console.warn('Failed to reload people data after bulk transaction:', reloadErr);
       }
-      
+
     } catch (err: any) {
       setGlobalError(err?.message || 'Failed to add bulk transaction');
     }
@@ -310,50 +328,14 @@ const App: React.FC = () => {
   const selectedPerson = people.find(p => p.id === selectedPersonId);
 
   return (
-    <div className="min-h-screen gradient-bg text-slate-200 font-sans">
-      <Header 
-        userName={currentUser.name} 
-        onLogout={handleLogout} 
-        onOpenNotifications={() => setShowNotifications(v => !v)} 
-        unreadCount={notifications.filter(n => !n.read).length} 
+    <div className="min-h-screen gradient-bg text-slate-200 font-sans pb-20">
+      <Header
+        userName={currentUser.name}
+        onLogout={handleLogout}
+        onOpenNotifications={() => setShowNotifications(v => !v)}
+        unreadCount={notifications.filter(n => !n.read).length}
       />
-      
-      {/* Navigation Tabs */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-b border-white/10">
-        <div className="flex">
-          <button
-            onClick={() => setActiveSection('people')}
-            className={`py-4 px-6 font-medium transition-colors ${
-              activeSection === 'people'
-                ? 'text-white border-b-2 border-primary-500'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-              </svg>
-              <span>People & IOUs</span>
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveSection('personal-finance')}
-            className={`py-4 px-6 font-medium transition-colors ${
-              activeSection === 'personal-finance'
-                ? 'text-white border-b-2 border-accent-500'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-              </svg>
-              <span>Personal Expenses</span>
-            </div>
-          </button>
-        </div>
-      </div>
-      
+
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         {loadingPeople && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-sm">
@@ -367,7 +349,7 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
-        
+
         {globalError && (
           <div className="mb-6 card-gradient border border-danger-500/20 rounded-xl p-4 flex justify-between items-start animate-fade-in">
             <div className="flex items-start space-x-3">
@@ -378,8 +360,8 @@ const App: React.FC = () => {
               </div>
               <span className="text-danger-200 font-medium">{globalError}</span>
             </div>
-            <button 
-              onClick={() => setGlobalError(null)} 
+            <button
+              onClick={() => setGlobalError(null)}
               className="text-danger-300/80 hover:text-danger-200 transition-colors p-1 rounded-lg hover:bg-danger-500/10"
             >
               <CloseIcon className="h-4 w-4" />
@@ -387,356 +369,401 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {activeSection === 'personal-finance' ? (
+        {activeSection === 'personal-finance' && (
           <PersonalFinance onError={setGlobalError} />
-        ) : selectedPerson ? (
-          <PersonDetail
-            person={selectedPerson}
-            onBack={() => setSelectedPersonId(null)}
-            onAddTransaction={addTransaction}
-            onUpdateTransaction={updateTransaction}
-            onDeleteTransaction={deleteTransaction}
-            onPersonUpdate={refreshPeople}
-          />
-        ) : (
-          <div className="space-y-8">
-            {/* Friends Section */}
-            <div data-section="friends" className="card-gradient border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
-              <div className="p-6 sm:p-8 border-b border-white/10">
-                <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                  <svg className="h-8 w-8 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                  </svg>
-                  Find Friends
-                </h3>
-                <div className="space-y-6">
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <svg className="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Search by name or email address..."
-                      value={friendQuery}
-                      onChange={(e) => setFriendQuery(e.target.value)}
-                      className="w-full bg-slate-800/70 border border-slate-600/50 text-white rounded-xl pl-12 pr-32 py-4 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all backdrop-blur-sm placeholder-slate-400"
-                    />
-                    <button
-                      onClick={async () => {
-                        try {
-                          setSearchLoading(true);
-                          const query = friendQuery.trim();
-                          if (!query) return;
-                          
-                          const results = await api.searchUsersByName(query);
-                          setSearchResults(results);
-                        } catch (e: any) {
-                          setGlobalError(e?.message || 'Search failed');
-                          setSearchResults([]);
-                        } finally {
-                          setSearchLoading(false);
-                        }
-                      }}
-                      disabled={!friendQuery.trim() || searchLoading}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 bg-primary-600 hover:bg-primary-700 disabled:bg-slate-600 text-white px-6 py-2 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg hover:shadow-xl"
-                    >
-                      {searchLoading ? (
-                        <div className="flex items-center gap-2">
-                          <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                          Searching...
-                        </div>
-                      ) : (
-                        'Search'
-                      )}
-                    </button>
-                  </div>
+        )}
 
-                  {searchLoading && (
-                    <div className="flex items-center justify-center py-12">
-                      <div className="relative">
-                        <div className="h-10 w-10 border-4 border-slate-600/30 rounded-full"></div>
-                        <div className="absolute top-0 left-0 h-10 w-10 border-4 border-transparent border-t-primary-500 rounded-full animate-spin"></div>
-                      </div>
-                    </div>
-                  )}
-
-                  {(!searchLoading && searchResults.length > 0) && (
-                    <div className="bg-slate-900/40 rounded-xl overflow-hidden border border-white/5 backdrop-blur-sm">
-                      <ul className="divide-y divide-white/5">
-                        {searchResults.map(u => (
-                          <li key={u.id} className="flex items-center justify-between p-5 hover:bg-white/5 transition-colors">
-                            <div className="flex items-center space-x-4 min-w-0">
-                              <div className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 rounded-full bg-slate-700 flex items-center justify-center text-white font-semibold text-lg border-2 border-primary-500/20">
-                                {u.name.charAt(0).toUpperCase()}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-white font-semibold truncate">{u.name}</p>
-                                <p className="text-slate-400 text-sm truncate">{u.email}</p>
-                              </div>
-                            </div>
-                            <button 
-                              onClick={async () => {
-                                try {
-                                  await api.sendFriendRequest(u.email);
-                                  const reqs = await api.getFriendRequests();
-                                  setIncomingRequests(reqs.incoming);
-                                  setOutgoingRequests(reqs.outgoing);
-                                } catch (e: any) {
-                                  setGlobalError(e?.message || 'Failed to send request');
-                                }
-                              }}
-                              className="ml-4 flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-primary-600/20 text-primary-400 hover:bg-primary-600/30 transition-all border border-primary-500/20 font-medium"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
-                              </svg>
-                              <span className="hidden sm:inline">Send Request</span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {(!searchLoading && searchResults.length === 0 && friendQuery) && (
-                    <div className="text-center py-12">
-                      <div className="h-16 w-16 mx-auto rounded-full bg-slate-800/50 flex items-center justify-center mb-4 border border-slate-700">
-                        <svg className="h-8 w-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {activeSection === 'people' && (
+          selectedPerson ? (
+            <PersonDetail
+              person={selectedPerson}
+              onBack={() => setSelectedPersonId(null)}
+              onAddTransaction={addTransaction}
+              onUpdateTransaction={updateTransaction}
+              onDeleteTransaction={deleteTransaction}
+              onPersonUpdate={refreshPeople}
+              currentUserId={currentUser?.id || ''}
+            />
+          ) : (
+            <div className="space-y-8">
+              {/* Friends Section */}
+              <div data-section="friends" className="card-gradient border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+                <div className="p-6 sm:p-8 border-b border-white/10">
+                  <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <svg className="h-8 w-8 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                    </svg>
+                    Find Friends
+                  </h3>
+                  <div className="space-y-6">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <svg className="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                       </div>
-                      <p className="text-slate-400">No users found matching "{friendQuery}"</p>
+                      <input
+                        type="text"
+                        placeholder="Search by name or email address..."
+                        value={friendQuery}
+                        onChange={(e) => setFriendQuery(e.target.value)}
+                        className="w-full bg-slate-800/70 border border-slate-600/50 text-white rounded-xl pl-12 pr-32 py-4 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all backdrop-blur-sm placeholder-slate-400"
+                      />
+                      <button
+                        onClick={async () => {
+                          try {
+                            setSearchLoading(true);
+                            const query = friendQuery.trim();
+                            if (!query) return;
+
+                            const results = await api.searchUsersByName(query);
+                            setSearchResults(results);
+                          } catch (e: any) {
+                            setGlobalError(e?.message || 'Search failed');
+                            setSearchResults([]);
+                          } finally {
+                            setSearchLoading(false);
+                          }
+                        }}
+                        disabled={!friendQuery.trim() || searchLoading}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 bg-primary-600 hover:bg-primary-700 disabled:bg-slate-600 text-white px-6 py-2 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg hover:shadow-xl"
+                      >
+                        {searchLoading ? (
+                          <div className="flex items-center gap-2">
+                            <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            Searching...
+                          </div>
+                        ) : (
+                          'Search'
+                        )}
+                      </button>
+                    </div>
+
+                    {searchLoading && (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="relative">
+                          <div className="h-10 w-10 border-4 border-slate-600/30 rounded-full"></div>
+                          <div className="absolute top-0 left-0 h-10 w-10 border-4 border-transparent border-t-primary-500 rounded-full animate-spin"></div>
+                        </div>
+                      </div>
+                    )}
+
+                    {(!searchLoading && searchResults.length > 0) && (
+                      <div className="bg-slate-900/40 rounded-xl overflow-hidden border border-white/5 backdrop-blur-sm">
+                        <ul className="divide-y divide-white/5">
+                          {searchResults.map(u => (
+                            <li key={u.id} className="flex items-center justify-between p-5 hover:bg-white/5 transition-colors">
+                              <div className="flex items-center space-x-4 min-w-0">
+                                <div className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 rounded-full bg-slate-700 flex items-center justify-center text-white font-semibold text-lg border-2 border-primary-500/20">
+                                  {u.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-white font-semibold truncate">{u.name}</p>
+                                  <p className="text-slate-400 text-sm truncate">{u.email}</p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await api.sendFriendRequest(u.email);
+                                    const reqs = await api.getFriendRequests();
+                                    setIncomingRequests(reqs.incoming);
+                                    setOutgoingRequests(reqs.outgoing);
+                                  } catch (e: any) {
+                                    setGlobalError(e?.message || 'Failed to send request');
+                                  }
+                                }}
+                                className="ml-4 flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-primary-600/20 text-primary-400 hover:bg-primary-600/30 transition-all border border-primary-500/20 font-medium"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
+                                </svg>
+                                <span className="hidden sm:inline">Send Request</span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {(!searchLoading && searchResults.length === 0 && friendQuery) && (
+                      <div className="text-center py-12">
+                        <div className="h-16 w-16 mx-auto rounded-full bg-slate-800/50 flex items-center justify-center mb-4 border border-slate-700">
+                          <svg className="h-8 w-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                        </div>
+                        <p className="text-slate-400">No users found matching "{friendQuery}"</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Friend Requests */}
+                {(incomingRequests.length > 0 || outgoingRequests.length > 0) && (
+                  <div className="border-t border-white/10">
+                    <div className="p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      <div>
+                        <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-success-400"></span>
+                          Incoming Requests
+                        </h4>
+                        {incomingRequests.length === 0 ? (
+                          <p className="text-slate-400 text-sm">No incoming requests</p>
+                        ) : (
+                          <ul className="space-y-3">
+                            {incomingRequests.map((r) => (
+                              <li key={r._id} className="flex items-center justify-between bg-slate-900/30 rounded-xl p-4 border border-white/5">
+                                <div className="flex items-center space-x-3">
+                                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-success-500 to-primary-500 flex items-center justify-center text-white font-semibold">
+                                    {typeof r.fromUser === 'object' ? r.fromUser.name.charAt(0).toUpperCase() : '?'}
+                                  </div>
+                                  <div>
+                                    <p className="text-white font-medium">{typeof r.fromUser === 'object' ? r.fromUser.name : ''}</p>
+                                    <p className="text-slate-400 text-sm">{typeof r.fromUser === 'object' ? r.fromUser.email : ''}</p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => respondToRequest(r._id, 'accept')}
+                                    className="px-3 py-1.5 rounded-lg bg-success-600/20 text-success-400 hover:bg-success-600/30 transition-colors border border-success-500/20 font-medium"
+                                  >
+                                    Accept
+                                  </button>
+                                  <button
+                                    onClick={() => respondToRequest(r._id, 'decline')}
+                                    className="px-3 py-1.5 rounded-lg bg-danger-600/20 text-danger-400 hover:bg-danger-600/30 transition-colors border border-danger-500/20 font-medium"
+                                  >
+                                    Decline
+                                  </button>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+
+                      <div>
+                        <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-accent-400"></span>
+                          Outgoing Requests
+                        </h4>
+                        {outgoingRequests.length === 0 ? (
+                          <p className="text-slate-400 text-sm">No outgoing requests</p>
+                        ) : (
+                          <ul className="space-y-3">
+                            {outgoingRequests.map((r) => (
+                              <li key={r._id} className="flex items-center justify-between bg-slate-900/30 rounded-xl p-4 border border-white/5">
+                                <div className="flex items-center space-x-3">
+                                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-accent-500 to-primary-500 flex items-center justify-center text-white font-semibold">
+                                    {typeof r.toUser === 'object' ? r.toUser.name.charAt(0).toUpperCase() : '?'}
+                                  </div>
+                                  <div>
+                                    <p className="text-white font-medium">{typeof r.toUser === 'object' ? r.toUser.name : ''}</p>
+                                    <p className="text-slate-400 text-sm">{typeof r.toUser === 'object' ? r.toUser.email : ''}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-accent-400 text-sm font-medium">Pending</span>
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        await api.cancelFriendRequest(r._id);
+                                        const reqs = await api.getFriendRequests();
+                                        setOutgoingRequests(reqs.outgoing);
+                                        setIncomingRequests(reqs.incoming);
+                                      } catch (e: any) {
+                                        setGlobalError(e?.message || 'Failed to cancel request');
+                                      }
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg bg-danger-600/20 text-danger-400 hover:bg-danger-600/30 transition-colors border border-danger-500/20 font-medium"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* People List */}
+              <PeopleList
+                people={people}
+                onSelectPerson={setSelectedPersonId}
+                onDeletePerson={deletePerson}
+                onConvertToFriend={async (p) => {
+                  const email = window.prompt(`Enter ${p.name}'s email to send a friend request`);
+                  if (!email) return;
+                  try {
+                    await api.sendFriendRequest(email.trim(), p.id);
+                    const reqs = await api.getFriendRequests();
+                    setIncomingRequests(reqs.incoming);
+                    setOutgoingRequests(reqs.outgoing);
+                  } catch (err: any) {
+                    setGlobalError(err?.message || 'Failed to send request');
+                  }
+                }}
+              />
+
+              {/* Enhanced FAB with Voice Command */}
+              <div className="fixed bottom-24 right-6 z-40 flex flex-col items-end gap-4">
+                {/* Voice Command Button */}
+                <VoiceCommandButton
+                  people={people}
+                  onAddTransaction={addTransaction}
+                  onBulkTransaction={handleBulkTransaction}
+                />
+
+                {/* Main FAB */}
+                <div className="relative">
+                  <button
+                    onClick={() => setIsFabMenuOpen(v => !v)}
+                    className="bg-primary-600 hover:bg-primary-700 text-white p-4 rounded-full shadow-2xl hover:shadow-primary-500/25 transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-4 focus:ring-primary-500/30 border border-primary-500/20"
+                    aria-label="Actions"
+                  >
+                    <div className={`transition-transform duration-200 ${isFabMenuOpen ? 'rotate-45' : ''}`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                    </div>
+                  </button>
+
+                  {isFabMenuOpen && (
+                    <div className="absolute bottom-16 right-0 bg-slate-900 rounded-2xl shadow-2xl p-3 w-64 border border-white/10 animate-slide-up">
+                      <button
+                        className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 text-white font-medium transition-colors flex items-center gap-3 group"
+                        onClick={() => { setIsAddPersonModalOpen(true); setIsFabMenuOpen(false); }}
+                      >
+                        <div className="h-8 w-8 rounded-lg bg-primary-500/20 flex items-center justify-center group-hover:bg-primary-500/30 transition-colors">
+                          <svg className="h-5 w-5 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        </div>
+                        <span>Add Person</span>
+                      </button>
+                      <button
+                        className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-colors flex items-center gap-3 group ${people.length === 0
+                          ? 'opacity-50 cursor-not-allowed text-slate-400'
+                          : 'hover:bg-white/10 text-white'
+                          }`}
+                        onClick={() => { setShowBulkTransactionModal(true); setIsFabMenuOpen(false); }}
+                        disabled={people.length === 0}
+                        title={people.length === 0 ? 'Add some people first' : 'Add transaction to multiple people'}
+                      >
+                        <div className={`h-8 w-8 rounded-lg flex items-center justify-center transition-colors ${people.length === 0
+                          ? 'bg-slate-600/20'
+                          : 'bg-amber-500/20 group-hover:bg-amber-500/30'
+                          }`}>
+                          <svg className={`h-5 w-5 ${people.length === 0 ? 'text-slate-500' : 'text-amber-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                        </div>
+                        <span>Bulk Transaction</span>
+                      </button>
+                      <button
+                        className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 text-white font-medium transition-colors flex items-center gap-3 group"
+                        onClick={() => { setIsFabMenuOpen(false); const el = document.querySelector('[data-section="friends"]'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }}
+                      >
+                        <div className="h-8 w-8 rounded-lg bg-accent-500/20 flex items-center justify-center group-hover:bg-accent-500/30 transition-colors">
+                          <svg className="h-5 w-5 text-accent-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                          </svg>
+                        </div>
+                        <span>Add Friend</span>
+                      </button>
+                      <button
+                        className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 text-white font-medium transition-colors flex items-center gap-3 group"
+                        onClick={() => { setIsFabMenuOpen(false); openProfile(); }}
+                      >
+                        <div className="h-8 w-8 rounded-lg bg-success-500/20 flex items-center justify-center group-hover:bg-success-500/30 transition-colors">
+                          <svg className="h-5 w-5 text-success-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </div>
+                        <span>Edit Profile</span>
+                      </button>
+                      <button
+                        className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 text-white font-medium transition-colors flex items-center gap-3 group"
+                        onClick={() => { setIsFabMenuOpen(false); setActiveSection('personal-finance'); }}
+                      >
+                        <div className="h-8 w-8 rounded-lg bg-accent-500/20 flex items-center justify-center group-hover:bg-accent-500/30 transition-colors">
+                          <svg className="h-5 w-5 text-accent-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                          </svg>
+                        </div>
+                        <span>Personal Expenses</span>
+                      </button>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Friend Requests */}
-              {(incomingRequests.length > 0 || outgoingRequests.length > 0) && (
-                <div className="border-t border-white/10">
-                  <div className="p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div>
-                      <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-success-400"></span>
-                        Incoming Requests
-                      </h4>
-                      {incomingRequests.length === 0 ? (
-                        <p className="text-slate-400 text-sm">No incoming requests</p>
-                      ) : (
-                        <ul className="space-y-3">
-                          {incomingRequests.map((r) => (
-                            <li key={r._id} className="flex items-center justify-between bg-slate-900/30 rounded-xl p-4 border border-white/5">
-                              <div className="flex items-center space-x-3">
-                                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-success-500 to-primary-500 flex items-center justify-center text-white font-semibold">
-                                  {typeof r.fromUser === 'object' ? r.fromUser.name.charAt(0).toUpperCase() : '?'}
-                                </div>
-                                <div>
-                                  <p className="text-white font-medium">{typeof r.fromUser === 'object' ? r.fromUser.name : ''}</p>
-                                  <p className="text-slate-400 text-sm">{typeof r.fromUser === 'object' ? r.fromUser.email : ''}</p>
-                                </div>
-                              </div>
-                              <div className="flex gap-2">
-                                <button 
-                                  onClick={() => respondToRequest(r._id, 'accept')} 
-                                  className="px-3 py-1.5 rounded-lg bg-success-600/20 text-success-400 hover:bg-success-600/30 transition-colors border border-success-500/20 font-medium"
-                                >
-                                  Accept
-                                </button>
-                                <button 
-                                  onClick={() => respondToRequest(r._id, 'decline')} 
-                                  className="px-3 py-1.5 rounded-lg bg-danger-600/20 text-danger-400 hover:bg-danger-600/30 transition-colors border border-danger-500/20 font-medium"
-                                >
-                                  Decline
-                                </button>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-accent-400"></span>
-                        Outgoing Requests
-                      </h4>
-                      {outgoingRequests.length === 0 ? (
-                        <p className="text-slate-400 text-sm">No outgoing requests</p>
-                      ) : (
-                        <ul className="space-y-3">
-                          {outgoingRequests.map((r) => (
-                            <li key={r._id} className="flex items-center justify-between bg-slate-900/30 rounded-xl p-4 border border-white/5">
-                              <div className="flex items-center space-x-3">
-                                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-accent-500 to-primary-500 flex items-center justify-center text-white font-semibold">
-                                  {typeof r.toUser === 'object' ? r.toUser.name.charAt(0).toUpperCase() : '?'}
-                                </div>
-                                <div>
-                                  <p className="text-white font-medium">{typeof r.toUser === 'object' ? r.toUser.name : ''}</p>
-                                  <p className="text-slate-400 text-sm">{typeof r.toUser === 'object' ? r.toUser.email : ''}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className="text-accent-400 text-sm font-medium">Pending</span>
-                                <button 
-                                  onClick={async () => {
-                                    try {
-                                      await api.cancelFriendRequest(r._id);
-                                      const reqs = await api.getFriendRequests();
-                                      setOutgoingRequests(reqs.outgoing);
-                                      setIncomingRequests(reqs.incoming);
-                                    } catch (e: any) {
-                                      setGlobalError(e?.message || 'Failed to cancel request');
-                                    }
-                                  }} 
-                                  className="px-3 py-1.5 rounded-lg bg-danger-600/20 text-danger-400 hover:bg-danger-600/30 transition-colors border border-danger-500/20 font-medium"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </div>
-                </div>
+              {isAddPersonModalOpen && (
+                <AddPersonModal
+                  onAddPerson={handleAddPerson}
+                  onClose={() => setIsAddPersonModalOpen(false)}
+                />
+              )}
+
+              {showBulkTransactionModal && (
+                <BulkTransactionForm
+                  people={people}
+                  onSubmit={handleBulkTransaction}
+                  onCancel={() => setShowBulkTransactionModal(false)}
+                />
               )}
             </div>
+          )
+        )}
 
-            {/* People List */}
-            <PeopleList 
-              people={people} 
-              onSelectPerson={setSelectedPersonId}
-              onDeletePerson={deletePerson}
-              onConvertToFriend={async (p) => {
-                const email = window.prompt(`Enter ${p.name}'s email to send a friend request`);
-                if (!email) return;
-                try {
-                  await api.sendFriendRequest(email.trim(), p.id);
-                  const reqs = await api.getFriendRequests();
-                  setIncomingRequests(reqs.incoming);
-                  setOutgoingRequests(reqs.outgoing);
-                } catch (err: any) {
-                  setGlobalError(err?.message || 'Failed to send request');
-                }
-              }}
-            />
-
-            {/* Enhanced FAB with Voice Command */}
-            <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-4">
-              {/* Voice Command Button */}
-              <VoiceCommandButton 
-                people={people}
-                onAddTransaction={addTransaction}
-                onBulkTransaction={handleBulkTransaction}
+        {activeSection === 'profile' && (
+          <div className="flex flex-col items-center justify-center py-12">
+            {currentUser.photoUrl ? (
+              <img 
+                src={currentUser.photoUrl} 
+                alt={currentUser.name}
+                className="h-24 w-24 rounded-full object-cover shadow-2xl mb-6 border-2 border-primary-500/50"
               />
-              
-              {/* Main FAB */}
-              <div className="relative">
-                <button
-                  onClick={() => setIsFabMenuOpen(v => !v)}
-                  className="bg-primary-600 hover:bg-primary-700 text-white p-4 rounded-full shadow-2xl hover:shadow-primary-500/25 transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-4 focus:ring-primary-500/30 border border-primary-500/20"
-                  aria-label="Actions"
-                >
-                  <div className={`transition-transform duration-200 ${isFabMenuOpen ? 'rotate-45' : ''}`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                  </div>
-                </button>
-                
-                {isFabMenuOpen && (
-                  <div className="absolute bottom-16 right-0 card-gradient rounded-2xl shadow-2xl p-3 w-64 border border-white/10 animate-slide-up">
-                    <button 
-                      className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 text-white font-medium transition-colors flex items-center gap-3 group" 
-                      onClick={() => { setIsAddPersonModalOpen(true); setIsFabMenuOpen(false); }}
-                    >
-                      <div className="h-8 w-8 rounded-lg bg-primary-500/20 flex items-center justify-center group-hover:bg-primary-500/30 transition-colors">
-                        <svg className="h-5 w-5 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                      </div>
-                      <span>Add Person</span>
-                    </button>
-                    <button 
-                      className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-colors flex items-center gap-3 group ${
-                        people.length === 0 
-                          ? 'opacity-50 cursor-not-allowed text-slate-400' 
-                          : 'hover:bg-white/10 text-white'
-                      }`}
-                      onClick={() => { setShowBulkTransactionModal(true); setIsFabMenuOpen(false); }}
-                      disabled={people.length === 0}
-                      title={people.length === 0 ? 'Add some people first' : 'Add transaction to multiple people'}
-                    >
-                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center transition-colors ${
-                        people.length === 0
-                          ? 'bg-slate-600/20'
-                          : 'bg-amber-500/20 group-hover:bg-amber-500/30'
-                      }`}>
-                        <svg className={`h-5 w-5 ${people.length === 0 ? 'text-slate-500' : 'text-amber-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                      </div>
-                      <span>Bulk Transaction</span>
-                    </button>
-                    <button 
-                      className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 text-white font-medium transition-colors flex items-center gap-3 group" 
-                      onClick={() => { setIsFabMenuOpen(false); const el = document.querySelector('[data-section="friends"]'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }}
-                    >
-                      <div className="h-8 w-8 rounded-lg bg-accent-500/20 flex items-center justify-center group-hover:bg-accent-500/30 transition-colors">
-                        <svg className="h-5 w-5 text-accent-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                        </svg>
-                      </div>
-                      <span>Add Friend</span>
-                    </button>
-                    <button 
-                      className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 text-white font-medium transition-colors flex items-center gap-3 group" 
-                      onClick={() => { setIsFabMenuOpen(false); openProfile(); }}
-                    >
-<div className="h-8 w-8 rounded-lg bg-success-500/20 flex items-center justify-center group-hover:bg-success-500/30 transition-colors">
-                        <svg className="h-5 w-5 text-success-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                      </div>
-                      <span>Edit Profile</span>
-                    </button>
-                    <button 
-                      className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 text-white font-medium transition-colors flex items-center gap-3 group" 
-                      onClick={() => { setIsFabMenuOpen(false); setActiveSection('personal-finance'); }}
-                    >
-                      <div className="h-8 w-8 rounded-lg bg-accent-500/20 flex items-center justify-center group-hover:bg-accent-500/30 transition-colors">
-                        <svg className="h-5 w-5 text-accent-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                        </svg>
-                      </div>
-                      <span>Personal Expenses</span>
-                    </button>
-                  </div>
-                )}
+            ) : (
+              <div className="h-24 w-24 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-3xl shadow-2xl mb-6">
+                {currentUser.name.charAt(0).toUpperCase()}
               </div>
+            )}
+            <h2 className="text-2xl font-bold text-white mb-2">{currentUser.name}</h2>
+            <p className="text-slate-400 mb-8">{currentUser.email}</p>
+
+            <div className="w-full max-w-sm space-y-4">
+              <button
+                onClick={openProfile}
+                className="w-full p-4 rounded-xl bg-slate-800/50 border border-white/5 hover:bg-slate-800 transition-colors flex items-center justify-between group"
+              >
+                <span className="font-medium text-slate-200">Edit Profile</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400 group-hover:text-white" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                </svg>
+              </button>
+
+              <button
+                onClick={handleLogout}
+                className="w-full p-4 rounded-xl bg-danger-500/10 border border-danger-500/20 hover:bg-danger-500/20 transition-colors flex items-center justify-center text-danger-400 font-medium"
+              >
+                Sign Out
+              </button>
             </div>
-
-            {isAddPersonModalOpen && (
-              <AddPersonModal 
-                onAddPerson={handleAddPerson} 
-                onClose={() => setIsAddPersonModalOpen(false)}
-              />
-            )}
-
-            {showBulkTransactionModal && (
-              <BulkTransactionForm 
-                people={people}
-                onSubmit={handleBulkTransaction}
-                onCancel={() => setShowBulkTransactionModal(false)}
-              />
-            )}
           </div>
         )}
       </main>
+
+      <BottomNavigation
+        activeSection={activeSection}
+        onNavigate={setActiveSection}
+      />
 
       {/* Enhanced Notifications */}
       {showNotifications && (
@@ -745,21 +772,21 @@ const App: React.FC = () => {
             <div className="flex items-center justify-between p-5 border-b border-white/10">
               <h4 className="text-white font-semibold text-lg">Notifications</h4>
               <div className="flex items-center gap-3">
-                <button 
-                  className="text-primary-400 hover:text-primary-300 font-medium text-sm transition-colors" 
-                  onClick={async () => { 
-                    await api.markNotificationsRead(); 
-                    const list = await api.getNotifications(); 
-                    setNotifications(list); 
+                <button
+                  className="text-primary-400 hover:text-primary-300 font-medium text-sm transition-colors"
+                  onClick={async () => {
+                    await api.markNotificationsRead();
+                    const list = await api.getNotifications();
+                    setNotifications(list);
                   }}
                 >
                   Mark all read
                 </button>
-                <button 
-                  className="text-danger-400 hover:text-danger-300 font-medium text-sm transition-colors" 
-                  onClick={async () => { 
-                    await api.clearNotifications(); 
-                    setNotifications([]); 
+                <button
+                  className="text-danger-400 hover:text-danger-300 font-medium text-sm transition-colors"
+                  onClick={async () => {
+                    await api.clearNotifications();
+                    setNotifications([]);
                   }}
                 >
                   Clear all
@@ -798,75 +825,70 @@ const App: React.FC = () => {
 
       {/* Enhanced Profile Modal */}
       {isProfileOpen && (
-        <div 
-          className="fixed inset-0 bg-black/80 backdrop-blur-md flex justify-center items-center z-50 p-4"
-          onClick={() => setIsProfileOpen(false)}
-          aria-modal="true"
-          role="dialog"
-        >
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex justify-center items-center z-50 p-4" onClick={() => setIsProfileOpen(false)}>
           <div className="card-gradient rounded-2xl shadow-2xl w-full max-w-md border border-white/10 animate-slide-up" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center p-6 border-b border-white/10">
               <h2 className="text-xl font-semibold text-white">Edit Profile</h2>
-              <button 
-                onClick={() => setIsProfileOpen(false)} 
-                className="text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10" 
-                aria-label="Close"
-              >
+              <button onClick={() => setIsProfileOpen(false)} className="text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10">
                 <CloseIcon />
               </button>
             </div>
             <div className="p-6 space-y-6">
               <div>
-                <label className="block text-sm text-slate-300 mb-2 font-medium">Name</label>
-                <input 
-                  value={profileName} 
-                  onChange={(e) => setProfileName(e.target.value)} 
-                  className="w-full bg-slate-800/50 border border-slate-600/50 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all" 
+                <label className="block text-sm font-medium text-slate-400 mb-2">Display Name</label>
+                <input
+                  type="text"
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  className="w-full bg-slate-800/50 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
                 />
               </div>
               <div>
-                <label className="block text-sm text-slate-300 mb-2 font-medium">Photo URL</label>
-                <input 
-                  value={profilePhotoUrl} 
-                  onChange={(e) => setProfilePhotoUrl(e.target.value)} 
-                  className="w-full bg-slate-800/50 border border-slate-600/50 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all" 
-                  placeholder="https://example.com/photo.jpg" 
-                />
-                <p className="text-xs text-slate-400 mt-2">Paste a public image URL</p>
-              </div>
-              <div className="flex flex-col gap-3 pt-4">
-                <div className="flex gap-3">
-                  <button 
-                    onClick={() => setIsProfileOpen(false)} 
-                    className="flex-1 px-4 py-3 rounded-xl bg-slate-700/50 text-slate-200 hover:bg-slate-700 transition-colors font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={saveProfile} 
-                    className="flex-1 px-4 py-3 rounded-xl button-gradient text-white hover:shadow-lg transition-all font-medium"
-                  >
-                    Save Changes
-                  </button>
-                </div>
-                <button 
-                  onClick={async () => {
-                    if (!window.confirm('This will permanently delete your account and all data. This action cannot be undone. Continue?')) return;
-                    try {
-                      await api.deleteAccount();
-                      setCurrentUser(null);
-                    } catch (e: any) {
-                      setGlobalError(e?.message || 'Failed to delete account');
-                    }
-                  }} 
-                  className="w-full px-4 py-3 rounded-xl bg-danger-700/50 text-danger-200 hover:bg-danger-700 transition-colors font-medium border border-danger-600/30"
+                <label className="block text-sm font-medium text-slate-400 mb-2">Profile Photo</label>
+                
+                {profilePhotoUrl && (
+                  <div className="mb-3 flex justify-center">
+                    <img 
+                      src={profilePhotoUrl} 
+                      alt="Profile preview" 
+                      className="h-24 w-24 rounded-full object-cover border-2 border-primary-500/50"
+                    />
+                  </div>
+                )}
+
+                <button
+                  onClick={() => setShowImageCropModal(true)}
+                  className="w-full px-4 py-3 rounded-xl bg-primary-600/20 text-primary-300 hover:bg-primary-600/30 transition-colors font-medium border border-primary-500/30"
                 >
-                  Delete Account
+                  {profilePhotoUrl ? 'Change Photo' : 'Upload Photo'}
                 </button>
+                
+                {profilePhotoUrl && (
+                  <button
+                    onClick={() => setProfilePhotoUrl('')}
+                    className="w-full mt-2 px-4 py-2 rounded-xl bg-danger-600/20 text-danger-300 hover:bg-danger-600/30 transition-colors text-sm"
+                  >
+                    Remove Photo
+                  </button>
+                )}
               </div>
+              <button
+                onClick={saveProfile}
+                className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 rounded-xl transition-all shadow-lg hover:shadow-primary-500/25 mt-4"
+              >
+                Save Changes
+              </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Image Crop Modal */}
+      {showImageCropModal && (
+        <ImageCropModal
+          onClose={() => setShowImageCropModal(false)}
+          onCropComplete={handleCroppedImage}
+        />
       )}
     </div>
   );

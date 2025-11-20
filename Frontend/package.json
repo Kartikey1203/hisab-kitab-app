@@ -13,10 +13,14 @@
     "preview": "vite preview --host --strictPort"
   },
   "dependencies": {
+    "cloudinary": "^1.41.3",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
+    "multer": "^2.0.2",
+    "multer-storage-cloudinary": "^4.0.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "react-image-crop": "^11.0.10"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

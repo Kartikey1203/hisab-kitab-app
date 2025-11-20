@@ -25,6 +25,7 @@ interface BackendTransaction {
   date: string;
   type: 'credit' | 'debit';
   person: string;
+  addedBy?: string;
 }
 
 interface BackendFriendRequest {
@@ -46,6 +47,7 @@ export interface Transaction {
   purpose: string;
   type: TransactionType;
   date: string;
+  addedBy?: string;
 }
 
 export interface Person {
@@ -120,6 +122,7 @@ const mapBackendTxToFrontend = (tx: BackendTransaction): Transaction => ({
   purpose: tx.description,
   type: tx.type === 'credit' ? TransactionType.I_PAID : TransactionType.THEY_PAID,
   date: new Date(tx.date).toISOString(),
+  addedBy: tx.addedBy,
 });
 
 export const api = {
@@ -229,8 +232,31 @@ export const api = {
   async getMe() {
     return request<{ id: string; name: string; email: string; photoUrl?: string | null }>('/api/users/me');
   },
-  async updateProfile(name: string, photoUrl?: string | null) {
-    return request<{ id: string; name: string; email: string; photoUrl?: string | null }>('/api/users/me', 'PUT', { name, photoUrl });
+  async updateProfile(name: string) {
+    return request<{ id: string; name: string; email: string; photoUrl?: string | null }>('/api/users/me', 'PUT', { name });
+  },
+  async uploadPhoto(photoBlob: Blob) {
+    const user = getStoredUser();
+    const formData = new FormData();
+    
+    // Convert Blob to File with proper filename
+    const file = new File([photoBlob], 'profile.jpg', { type: 'image/jpeg' });
+    formData.append('photo', file);
+
+    const res = await fetch(`${API_BASE_URL}/api/users/me/photo`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${user?.token}`,
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ message: 'Upload failed' }));
+      throw new Error(error.message || 'Failed to upload photo');
+    }
+
+    return res.json() as Promise<{ id: string; name: string; email: string; photoUrl: string }>;
   },
   async searchUsersByName(query: string) {
     const encoded = encodeURIComponent(query);

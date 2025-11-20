@@ -9,7 +9,7 @@ export interface Transaction {
   purpose: string;
   type: TransactionType;
   date: string;
-  createdBy?: string; // Optional field
+  addedBy?: string; // User who created this transaction
 }
 
 export interface Person {

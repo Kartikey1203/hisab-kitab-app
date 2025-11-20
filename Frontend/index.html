@@ -1,149 +1,163 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hisab Kitab</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              // Fresh modern color palette
-              primary: {
-                50: '#f0f7ff',
-                100: '#e0efff',
-                200: '#b8dfff',
-                300: '#7cc7ff',
-                400: '#36aeff',
-                500: '#0095ff', // Main primary color
-                600: '#0077cc',
-                700: '#005999',
-                800: '#004166',
-                900: '#002233',
-              },
-              accent: {
-                50: '#fff7ed',
-                100: '#ffedd5',
-                200: '#fed7aa',
-                300: '#fdba74',
-                400: '#fb923c',
-                500: '#f97316', // Main accent color
-                600: '#ea580c',
-                700: '#c2410c',
-                800: '#9a3412',
-                900: '#7c2d12',
-              },
-              // Modern success and danger colors
-              success: {
-                50: '#f0fdf4',
-                100: '#dcfce7',
-                200: '#bbf7d0',
-                300: '#86efac',
-                400: '#4ade80',
-                500: '#22c55e', // Main success color
-                600: '#16a34a',
-                700: '#15803d',
-                800: '#166534',
-                900: '#14532d',
-              },
-              danger: {
-                50: '#fef2f2',
-                100: '#fee2e2',
-                200: '#fecaca',
-                300: '#fca5a5',
-                400: '#f87171',
-                500: '#ef4444', // Main danger color
-                600: '#dc2626',
-                700: '#b91c1c',
-                800: '#991b1b',
-                900: '#7f1d1d',
-              },
-              // New background colors
-              surface: {
-                50: '#f8fafc',
-                100: '#f1f5f9',
-                200: '#e2e8f0',
-                300: '#cbd5e1',
-                400: '#94a3b8',
-                500: '#64748b',
-                600: '#475569',
-                700: '#334155',
-                800: '#1e293b',
-                900: '#0f172a',
-                950: '#020617',
-              }
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hisab Kitab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            // Fintech Dark Theme
+            primary: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              200: '#ddd6fe',
+              300: '#c4b5fd',
+              400: '#a78bfa',
+              500: '#8b5cf6', // Violet - Trust & Wealth
+              600: '#7c3aed',
+              700: '#6d28d9',
+              800: '#5b21b6',
+              900: '#4c1d95',
+              950: '#2e1065',
             },
-            fontFamily: {
-              sans: ['Inter', 'system-ui', 'sans-serif'],
+            accent: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              200: '#a7f3d0',
+              300: '#6ee7b7',
+              400: '#34d399',
+              500: '#10b981', // Emerald - Money & Growth
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+              900: '#064e3b',
+              950: '#022c22',
             },
-            animation: {
-              'fade-in': 'fadeIn 0.5s ease-in-out',
-              'slide-up': 'slideUp 0.3s ease-out',
+            success: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              200: '#bbf7d0',
+              300: '#86efac',
+              400: '#4ade80',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              800: '#166534',
+              900: '#14532d',
+            },
+            danger: {
+              50: '#fff1f2',
+              100: '#ffe4e6',
+              200: '#fecdd3',
+              300: '#fda4af',
+              400: '#fb7185',
+              500: '#f43f5e', // Rose
+              600: '#e11d48',
+              700: '#be123c',
+              800: '#9f1239',
+              900: '#881337',
+              950: '#4c0519',
+            },
+            surface: {
+              50: '#f8fafc',
+              100: '#f1f5f9',
+              200: '#e2e8f0',
+              300: '#cbd5e1',
+              400: '#94a3b8',
+              500: '#64748b',
+              600: '#475569',
+              700: '#334155',
+              800: '#1e293b',
+              900: '#0f172a',
+              950: '#020617',
             }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.5s ease-in-out',
+            'slide-up': 'slideUp 0.3s ease-out',
           }
         }
       }
-    </script>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-      
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    html {
+      font-size: 15px;
+    }
+
+    @media (max-width: 600px) {
       html {
-        font-size: 15px;
-      }
-      @media (max-width: 600px) {
-        html {
-          font-size: 11px;
-        }
-        body {
-          padding: 0 2vw;
-        }
-        #root {
-          max-width: 100vw;
-          min-width: 0;
-        }
-      }
-      @media (max-width: 400px) {
-        html {
-          font-size: 10px;
-        }
-      }
-      
-      /* Simplified scrollbar */
-      ::-webkit-scrollbar {
-        width: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #1e293b;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #475569;
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #64748b;
+        font-size: 11px;
       }
 
-      /* Remove loading animation styles */
-      .app-bg {
-        background-color: #0f172a;
+      body {
+        padding: 0 2vw;
       }
-      .card-bg {
-        background-color: rgba(30, 41, 59, 0.5);
-        backdrop-filter: blur(12px);
+
+      #root {
+        max-width: 100vw;
+        min-width: 0;
       }
-      .action-button {
-        background-color: #0095ff;
-        transition: background-color 0.2s;
+    }
+
+    @media (max-width: 400px) {
+      html {
+        font-size: 10px;
       }
-      .action-button:hover {
-        background-color: #0077cc;
-      }
-    </style>
-  </head>
-  <body class="app-bg">
-    <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
-  </body>
+    }
+
+    /* Simplified scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+
+    /* Remove loading animation styles */
+    .app-bg {
+      background-color: #0f172a;
+    }
+
+    .card-bg {
+      background-color: rgba(30, 41, 59, 0.5);
+      backdrop-filter: blur(12px);
+    }
+
+    .action-button {
+      background-color: #8b5cf6;
+      transition: background-color 0.2s;
+    }
+
+    .action-button:hover {
+      background-color: #7c3aed;
+    }
+  </style>
+</head>
+
+<body class="app-bg">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
 </html>
