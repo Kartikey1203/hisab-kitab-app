@@ -21,10 +21,6 @@ const PersonalExpenseForm: React.FC<PersonalExpenseFormProps> = ({
       setAmount(String(editingExpense.amount));
       setDescription(editingExpense.description);
       setDate(new Date(editingExpense.date).toISOString().split('T')[0]);
-    } else {
-      setAmount('');
-      setDescription('');
-      setDate(new Date().toISOString().split('T')[0]);
     }
   }, [editingExpense]);
 
@@ -46,7 +42,6 @@ const PersonalExpenseForm: React.FC<PersonalExpenseFormProps> = ({
     if (!editingExpense) {
       setDescription('');
       setAmount('');
-      setDate(new Date().toISOString().split('T')[0]);
     }
   };
 

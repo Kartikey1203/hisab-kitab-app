@@ -13,28 +13,47 @@ interface ExpenseAnalyticsProps {
 }
 
 const ExpenseAnalytics: React.FC<ExpenseAnalyticsProps> = ({ onError }) => {
-  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('month');
+  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year' | 'custom'>('month');
   const [categorySummary, setCategorySummary] = useState<CategorySummary[]>([]);
   const [timeSummary, setTimeSummary] = useState<TimePeriodSummary[]>([]);
   const [totalSpent, setTotalSpent] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
 
   useEffect(() => {
-    loadAnalyticsData();
+    if (timeRange !== 'custom') {
+      loadAnalyticsData();
+    }
   }, [timeRange]);
 
   const getDateRange = () => {
     const now = new Date();
     const start = new Date();
-    
+
     if (timeRange === 'week') {
       start.setDate(now.getDate() - 7);
     } else if (timeRange === 'month') {
       start.setMonth(now.getMonth() - 1);
     } else if (timeRange === 'year') {
       start.setFullYear(now.getFullYear() - 1);
+    } else if (timeRange === 'custom') {
+      if (!customStart || !customEnd) {
+        return null;
+      }
+
+      const customStartDate = new Date(customStart);
+      const customEndDate = new Date(customEnd);
+
+      // Ensure end date includes the full day
+      customEndDate.setHours(23, 59, 59, 999);
+
+      return {
+        start: customStartDate.toISOString(),
+        end: customEndDate.toISOString(),
+      };
     }
-    
+
     return {
       start: start.toISOString(),
       end: now.toISOString(),
@@ -46,8 +65,31 @@ const ExpenseAnalytics: React.FC<ExpenseAnalyticsProps> = ({ onError }) => {
       setLoading(true);
       const dateRange = getDateRange();
       
+      if (!dateRange) {
+        if (timeRange === 'custom') {
+          onError('Please select both start and end dates for the custom range');
+        }
+        setLoading(false);
+        return;
+      }
+      
       // Determine time period granularity based on selected range
-      const timePeriod = timeRange === 'week' ? 'daily' : timeRange === 'month' ? 'daily' : 'monthly';
+      let timePeriod: 'daily' | 'weekly' | 'monthly';
+
+      if (timeRange === 'week') {
+        timePeriod = 'daily';
+      } else if (timeRange === 'month') {
+        timePeriod = 'daily';
+      } else if (timeRange === 'year') {
+        timePeriod = 'monthly';
+      } else {
+        // For custom range, choose granularity based on length of range
+        const startDate = new Date(dateRange.start);
+        const endDate = new Date(dateRange.end);
+        const diffDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+
+        timePeriod = diffDays <= 31 ? 'daily' : 'monthly';
+      }
       
       const timeData = await api.getTimePeriodSummary(timePeriod as any, dateRange);
       setTimeSummary(timeData);
@@ -176,8 +218,48 @@ const ExpenseAnalytics: React.FC<ExpenseAnalyticsProps> = ({ onError }) => {
           >
             Last Year
           </button>
+          <button
+            onClick={() => setTimeRange('custom')}
+            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
+              timeRange === 'custom'
+                ? 'bg-primary-600 text-white'
+                : 'text-slate-300 hover:bg-slate-700'
+            }`}
+          >
+            Custom Range
+          </button>
         </div>
       </div>
+
+      {timeRange === 'custom' && (
+        <div className="flex flex-wrap gap-3 items-end bg-slate-800/60 border border-slate-700/60 rounded-lg p-4">
+          <div className="flex flex-col">
+            <label className="text-xs text-slate-400 mb-1">From</label>
+            <input
+              type="date"
+              value={customStart}
+              onChange={(e) => setCustomStart(e.target.value)}
+              className="bg-slate-900/60 border border-slate-700 text-sm text-white rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-xs text-slate-400 mb-1">To</label>
+            <input
+              type="date"
+              value={customEnd}
+              onChange={(e) => setCustomEnd(e.target.value)}
+              className="bg-slate-900/60 border border-slate-700 text-sm text-white rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <button
+            onClick={loadAnalyticsData}
+            className="inline-flex items-center gap-1 bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium px-4 py-1.5 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            disabled={!customStart || !customEnd || loading}
+          >
+            Apply
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12">
@@ -192,7 +274,12 @@ const ExpenseAnalytics: React.FC<ExpenseAnalyticsProps> = ({ onError }) => {
             <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-6 flex flex-col items-center">
               <h4 className="text-slate-400 mb-2 text-sm">Total Spent</h4>
               <p className="text-white text-2xl font-bold">₹{totalSpent.toFixed(2)}</p>
-              <p className="text-xs text-slate-400 mt-1">in the last {timeRange}</p>
+              <p className="text-xs text-slate-400 mt-1">
+                {timeRange === 'week' && 'in the last week'}
+                {timeRange === 'month' && 'in the last month'}
+                {timeRange === 'year' && 'in the last year'}
+                {timeRange === 'custom' && 'in the selected date range'}
+              </p>
             </div>
           </div>
 
